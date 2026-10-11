@@ -1,0 +1,22 @@
+{
+  "name": "校色对战决斗",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 311,
+    "y": 1001,
+    "width": 94,
+    "height": 46
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 358,
+    "y": 1024
+  },
+  "scene": "",
+  "tags": []
+}

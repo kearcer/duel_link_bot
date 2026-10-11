@@ -1,0 +1,22 @@
+{
+  "name": "决斗进行中_我的回合选择_2以后回合结束",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 525,
+    "y": 601,
+    "width": 149,
+    "height": 45
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 599,
+    "y": 623
+  },
+  "scene": "",
+  "tags": []
+}

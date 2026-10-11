@@ -1,0 +1,22 @@
+{
+  "name": "决斗进行中_我的回合选择",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 606,
+    "y": 770,
+    "width": 100,
+    "height": 88
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 656,
+    "y": 814
+  },
+  "scene": "",
+  "tags": []
+}

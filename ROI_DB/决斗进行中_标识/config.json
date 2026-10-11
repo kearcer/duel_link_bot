@@ -1,0 +1,22 @@
+{
+  "name": "决斗进行中_标识",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 634,
+    "y": 22,
+    "width": 65,
+    "height": 62
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 666,
+    "y": 53
+  },
+  "scene": "",
+  "tags": []
+}

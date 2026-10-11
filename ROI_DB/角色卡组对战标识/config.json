@@ -1,0 +1,22 @@
+{
+  "name": "角色卡组对战标识",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 20,
+    "y": 947,
+    "width": 340,
+    "height": 156
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 190,
+    "y": 1025
+  },
+  "scene": "",
+  "tags": []
+}

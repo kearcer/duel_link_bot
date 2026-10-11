@@ -1,0 +1,22 @@
+{
+  "name": "决斗进行中_我的回合",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 403,
+    "y": 64,
+    "width": 35,
+    "height": 28
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 420,
+    "y": 78
+  },
+  "scene": "",
+  "tags": []
+}

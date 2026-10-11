@@ -1,0 +1,22 @@
+{
+  "name": "决斗进行中_对手回合",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 385,
+    "y": 60,
+    "width": 48,
+    "height": 29
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 409,
+    "y": 74
+  },
+  "scene": "",
+  "tags": []
+}
