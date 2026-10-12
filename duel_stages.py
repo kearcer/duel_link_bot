@@ -45,6 +45,7 @@ ENTRY_NO_DUEL = "NO_DUEL"
 # 决斗结束统一处理器的返回值
 POST_MAIN_PAGE = "MAIN_PAGE"
 POST_PORTAL_PAGE = "PORTAL_PAGE"
+POST_ARENA_DUEL_PAGE = "ARENA_DUEL_PAGE"
 
 manager = ROIManager(DB)
 matcher = TemplateMatcher()
@@ -295,6 +296,18 @@ def wait_until_main_page():
         time.sleep(POLL_INTERVAL)
 
 
+def handle_main_page_pre_actions():
+    for detect_name, click_name in (
+        ("查看无名决斗者卡组_标识", "查看无名决斗者卡组_取消"),
+        ("活动传奇决斗者出现", "活动传奇决斗者出现"),
+    ):
+        screen = capture_screen()
+        if match_roi(detect_name, screen):
+            logger.info("[MainPage] %s -> %s", detect_name, click_name)
+            click_roi_center(click_name)
+            wait_until_main_page()
+
+
 # ============================================================
 # 统一阶段 A：点击目标以后，一直处理到“自动决斗”真正启动
 # ============================================================
@@ -421,7 +434,7 @@ POST_DUEL_ACTIONS = (
 )
 
 
-def detect_post_duel_terminal(screen=None):
+def detect_post_duel_terminal(screen=None, extra_terminals=()):
     """
     统一判断结算阶段是否已经结束。
 
@@ -430,6 +443,10 @@ def detect_post_duel_terminal(screen=None):
     """
     if screen is None:
         screen = capture_screen()
+
+    for detect_name, result in extra_terminals:
+        if match_roi(detect_name, screen):
+            return result
 
     # 先检查传送门决斗页，避免已经回到 Stage3 入口后继续乱点。
     if match_roi("传送门人物界面_决斗", screen):
@@ -445,7 +462,7 @@ def detect_post_duel_terminal(screen=None):
     return None
 
 
-def post_duel_click(click_name):
+def post_duel_click(click_name, extra_terminals=()):
     """
     结算阶段专用点击：
       1. 点击匹配到的 ROI 对应按钮；
@@ -460,7 +477,7 @@ def post_duel_click(click_name):
     click_roi_center(click_name)
 
     screen = capture_screen()
-    terminal = detect_post_duel_terminal(screen)
+    terminal = detect_post_duel_terminal(screen, extra_terminals)
     if terminal:
         return terminal
 
@@ -468,7 +485,7 @@ def post_duel_click(click_name):
     return None
 
 
-def wait_and_finish_duel():
+def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False):
     """
     三个 Stage 共用的完整决斗结算处理器。
 
@@ -483,19 +500,20 @@ def wait_and_finish_duel():
 
     logger.info("[Duel] 等待战斗结束")
 
-    while True:
-        time.sleep(15)
+    if not victory_already_visible:
+        while True:
+            time.sleep(15)
 
-        screen = capture_screen()
-        if match_roi("决斗胜利_好", screen):
-            break
+            screen = capture_screen()
+            if match_roi("决斗胜利_好", screen):
+                break
 
-        check_and_recover_network()
+            check_and_recover_network()
 
     logger.info("[Duel] 胜利，进入统一结算处理")
 
     # 先处理第一次明确的“决斗胜利_好”。
-    terminal = post_duel_click("决斗胜利_好")
+    terminal = post_duel_click("决斗胜利_好", extra_terminals)
     if terminal:
         logger.info("[Duel] 结算结束：%s", terminal)
         return terminal
@@ -504,7 +522,7 @@ def wait_and_finish_duel():
         screen = capture_screen()
 
         # 必须先判断终点，再进行任何额外点击。
-        terminal = detect_post_duel_terminal(screen)
+        terminal = detect_post_duel_terminal(screen, extra_terminals)
         if terminal:
             logger.info("[Duel] 结算结束：%s", terminal)
             return terminal
@@ -515,7 +533,7 @@ def wait_and_finish_duel():
         for detect_name, click_name in POST_DUEL_ACTIONS:
             if match_roi(detect_name, screen):
                 logger.info("[PostDuel] %s -> %s", detect_name, click_name)
-                terminal = post_duel_click(click_name)
+                terminal = post_duel_click(click_name, extra_terminals)
                 if terminal:
                     logger.info("[Duel] 结算结束：%s", terminal)
                     return terminal
@@ -566,6 +584,7 @@ def run_stage_1():
 
     while True:
         wait_until_main_page()
+        handle_main_page_pre_actions()
 
         if match_roi("路人负样本"):
             logger.info("[Stage1] 路人负样本匹配，完成")
@@ -623,6 +642,7 @@ def run_stage_2():
     if not start_stage(2):
         return
 
+    handle_main_page_pre_actions()
     click_roi_center("切换世界")
 
     # 按当前需求保留：Round 1~9，每轮 World 1~9，共 81 次世界检查。
@@ -691,6 +711,7 @@ def run_stage_3():
     if not start_stage(3):
         return
 
+    handle_main_page_pre_actions()
     logger.info("[Stage3] 开始传送门")
     click_roi_center("传送门")
 
@@ -721,6 +742,112 @@ def run_stage_3():
         if finish_result == POST_MAIN_PAGE:
             logger.info("[Stage3] 已回到主界面，阶段三完成")
             return
+
+
+# ============================================================
+# Stage 4：竞技场校色对战循环
+# ============================================================
+
+
+STAGE4_POST_TERMINALS = (("校色对战决斗", POST_ARENA_DUEL_PAGE),)
+STAGE4_TURN_END_ACTIONS = (
+    "决斗进行中_我的回合选择_回合结束",
+    "决斗进行中_我的回合选择_2以后回合结束",
+)
+
+
+def enter_stage_4_duel():
+    while True:
+        screen = capture_screen()
+
+        if match_roi("校色对战决斗", screen):
+            logger.info("[Stage4] 点击校色对战决斗")
+            click_roi_center("校色对战决斗")
+            return
+
+        if match_roi("角色卡组对战标识", screen):
+            logger.info("[Stage4] 点击角色卡组对战标识")
+            click_roi_center("角色卡组对战标识")
+            continue
+
+        if check_and_recover_network():
+            continue
+
+        time.sleep(POLL_INTERVAL)
+
+
+def play_stage_4_duel_until_victory():
+    while True:
+        screen = capture_screen()
+
+        if match_roi("决斗胜利_好", screen):
+            logger.info("[Stage4] 检测到决斗胜利")
+            return
+
+        if match_roi("决斗进行中_返回", screen):
+            logger.info("[Stage4] 点击决斗进行中_返回")
+            click_roi_center("决斗进行中_返回")
+            continue
+
+        if not match_roi("决斗进行中_标识", screen):
+            check_and_recover_network()
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        if match_roi("决斗进行中_对手回合", screen):
+            logger.info("[Stage4] 对手回合，继续等待")
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        handled = False
+        for action_name in STAGE4_TURN_END_ACTIONS:
+            if match_roi(action_name, screen):
+                logger.info("[Stage4] 点击回合结束：%s", action_name)
+                click_roi_center(action_name)
+                handled = True
+                break
+
+        if handled:
+            continue
+
+        if match_roi("决斗进行中_我的回合", screen) and match_roi("决斗进行中_我的回合选择", screen):
+            logger.info("[Stage4] 点击我的回合选择")
+            click_roi_center("决斗进行中_我的回合选择")
+            continue
+
+        if check_and_recover_network():
+            continue
+
+        time.sleep(POLL_INTERVAL)
+
+
+def run_stage_4():
+    if not start_stage(4):
+        return
+
+    handle_main_page_pre_actions()
+    logger.info("[Stage4] 开始竞技场")
+    click_roi_center("竞技场")
+
+    while True:
+        enter_stage_4_duel()
+        play_stage_4_duel_until_victory()
+
+        finish_result = wait_and_finish_duel(
+            extra_terminals=STAGE4_POST_TERMINALS,
+            victory_already_visible=True,
+        )
+
+        if finish_result == POST_ARENA_DUEL_PAGE:
+            logger.info("[Stage4] 已回到校色对战决斗界面，继续下一场")
+            continue
+
+        if finish_result == POST_MAIN_PAGE:
+            logger.info("[Stage4] 已回到主界面，阶段四完成")
+            return
+
+        logger.warning("[Stage4] 结算后进入非竞技场页面：%s，结束阶段四", finish_result)
+        return
 
 
 # ============================================================
@@ -772,20 +899,20 @@ def wait_for_any_key(message="请按任意键返回阶段选择菜单..."):
 
 
 def select_stage():
-    """循环读取 0/1/2/3；输入 q/quit/exit 可退出程序。"""
+    """循环读取 0/1/2/3/4；输入 q/quit/exit 可退出程序。"""
     while True:
         try:
-            value = input("Select stage [0/1/2/3] (q=退出): ").strip().lower()
+            value = input("Select stage [0/1/2/3/4] (q=退出): ").strip().lower()
         except EOFError:
             return None
 
         if value in {"q", "quit", "exit"}:
             return None
 
-        if value in {"0", "1", "2", "3"}:
+        if value in {"0", "1", "2", "3", "4"}:
             return int(value)
 
-        print("请输入 0、1、2、3，或 q 退出。")
+        print("请输入 0、1、2、3、4，或 q 退出。")
 
 
 def run_selected_stage(stage):
@@ -800,6 +927,7 @@ def run_selected_stage(stage):
         1: run_stage_1,
         2: run_stage_2,
         3: run_stage_3,
+        4: run_stage_4,
     }
 
     try:
@@ -835,7 +963,7 @@ def main():
     # stage 改为可选：
     # - 直接运行 duel_stages.py -> 进入菜单
     # - duel_stages.py 1 -> 先运行 Stage1，结束后仍返回菜单
-    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3))
+    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3, 4))
     parser.add_argument("--adb", default=ADB)
     parser.add_argument("--device", help="ADB 设备序列号；默认自动发现在线设备")
     parser.add_argument("--db", type=Path, default=DB)
