@@ -7,14 +7,15 @@ where py >nul 2>nul
 if errorlevel 1 set "PYTHON_EXE=python"
 set "STAGE=%~1"
 if not defined STAGE (
-    choice /c 0123 /n /m "Select stage [0/1/2/3]: "
-    if errorlevel 4 (set "STAGE=3") else if errorlevel 3 (set "STAGE=2") else if errorlevel 2 (set "STAGE=1") else if errorlevel 1 (set "STAGE=0") else exit /b 1
+    choice /c 01234 /n /m "Select stage [0/1/2/3/4]: "
+    if errorlevel 5 (set "STAGE=4") else if errorlevel 4 (set "STAGE=3") else if errorlevel 3 (set "STAGE=2") else if errorlevel 2 (set "STAGE=1") else if errorlevel 1 (set "STAGE=0") else exit /b 1
 )
 if "%STAGE%"=="0" goto run
 if "%STAGE%"=="1" goto run
 if "%STAGE%"=="2" goto run
 if "%STAGE%"=="3" goto run
-echo Usage: run_duel_stage.bat [0^|1^|2^|3]
+if "%STAGE%"=="4" goto run
+echo Usage: run_duel_stage.bat [0^|1^|2^|3^|4]
 exit /b 1
 :run
 if defined DUEL_STAGE_EXE (
