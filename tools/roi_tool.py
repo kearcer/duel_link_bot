@@ -28,14 +28,84 @@ TYPE_LABELS = {
     "click": "仅点击坐标",
 }
 
+DEFAULT_MUMU_ADB_ENDPOINTS = ("127.0.0.1:16384", "127.0.0.1:7555")
+
+
+def list_adb_device_rows(adb: str) -> list[tuple[str, str]]:
+    output = subprocess.check_output([adb, "devices"], text=True, timeout=15)
+    return [
+        (parts[0], parts[1])
+        for line in output.splitlines()[1:]
+        if len(parts := line.split()) >= 2
+    ]
+
+
+def list_adb_devices(adb: str) -> list[str]:
+    return [serial for serial, state in list_adb_device_rows(adb) if state == "device"]
+
+
+def adb_connect_targets() -> tuple[str, ...]:
+    configured = os.environ.get("DUEL_STAGE_ADB_CONNECT")
+    if configured is None:
+        return DEFAULT_MUMU_ADB_ENDPOINTS
+    return tuple(target.strip() for target in configured.split(",") if target.strip())
+
+
+def connect_mumu_devices(adb: str) -> None:
+    mumu_manager = Path(adb).with_name("MuMuManager.exe")
+    if not mumu_manager.is_file():
+        return
+
+    subprocess.run(
+        [str(mumu_manager), "adb", "-v", "all", "-c", "connect"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=15,
+    )
+
+
+def connect_adb_targets(adb: str) -> None:
+    for target in adb_connect_targets():
+        subprocess.run(
+            [adb, "connect", target],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+        )
+
+
+def format_device_error(adb: str, device_rows: list[tuple[str, str]]) -> str:
+    states = ", ".join(f"{serial}({state})" for serial, state in device_rows) or "无"
+    targets = ", ".join(adb_connect_targets()) or "未配置"
+    return (
+        "未找到在线 ADB 设备，请确认 MuMu 已启动 Android 且已开启 ADB 调试；"
+        f"ADB={adb}；当前设备={states}；已尝试连接={targets}"
+    )
+
+
+def resolve_adb_device(adb: str) -> str:
+    devices = list_adb_devices(adb)
+    if not devices:
+        connect_mumu_devices(adb)
+        devices = list_adb_devices(adb)
+    if not devices:
+        connect_adb_targets(adb)
+        devices = list_adb_devices(adb)
+
+    if not devices:
+        raise RuntimeError(format_device_error(adb, list_adb_device_rows(adb)))
+
+    return devices[0]
+
 
 def capture_adb(adb: str, device: str | None = None) -> Image.Image:
     if not adb:
         raise ValueError("未配置 ADB")
-    command = [adb]
-    if device:
-        command += ["-s", device]
-    command += ["exec-out", "screencap", "-p"]
+    command = [adb, "-s", device or resolve_adb_device(adb), "exec-out", "screencap", "-p"]
     from io import BytesIO
     return Image.open(BytesIO(subprocess.check_output(command, timeout=15))).convert("RGB")
 

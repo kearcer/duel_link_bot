@@ -46,7 +46,12 @@ $env:DUEL_STAGE_ADB="D:\path\to\adb.exe"
 python .\duel_stages.py 1 --adb "D:\path\to\adb.exe" --device "127.0.0.1:16384"
 ```
 
-未指定 `--device` 时脚本会自动选择在线 ADB 设备；如果没有在线设备，会尝试调用 ADB 同目录的 `MuMuManager.exe` 连接 MuMu 实例。
+未指定 `--device` 时脚本会自动选择在线 ADB 设备；如果没有在线设备，会尝试调用 ADB 同目录的 `MuMuManager.exe` 连接 MuMu 实例，并尝试连接 MuMu 常见的 `127.0.0.1:16384`、`127.0.0.1:7555`。如果你的 MuMu 使用其他端口，可以用逗号分隔配置：
+
+```powershell
+$env:DUEL_STAGE_ADB_CONNECT="127.0.0.1:16416,127.0.0.1:7555"
+.\run_duel_stage.bat 1
+```
 
 ## 源码运行
 
@@ -79,6 +84,8 @@ $env:ADB_PATH="D:\path\to\adb.exe"
 $env:DEVICE="127.0.0.1:16384"
 .\tools\run_roi_tool.bat
 ```
+
+未设置 `DEVICE` 时，ROI 工具截图也会自动发现在线设备，并使用 `DUEL_STAGE_ADB_CONNECT` 尝试连接 MuMu 端口。
 
 ## 目录结构
 

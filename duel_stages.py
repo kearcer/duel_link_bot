@@ -28,6 +28,7 @@ DB = APP_DIR / "ROI_DB" if (APP_DIR / "ROI_DB").is_dir() else BUNDLE_DIR / "ROI_
 LOG_FILE = APP_DIR / "duel_stages.log"
 ADB = os.environ.get("DUEL_STAGE_ADB") or str(APP_DIR / "adb.exe" if (APP_DIR / "adb.exe").is_file() else APP_DIR / "platform-tools" / "adb.exe" if (APP_DIR / "platform-tools" / "adb.exe").is_file() else "adb")
 DEVICE = None
+DEFAULT_MUMU_ADB_ENDPOINTS = ("127.0.0.1:16384", "127.0.0.1:7555")
 
 POLL_INTERVAL = 1.0
 ENTRY_IDLE_TIMEOUT = 12.0
@@ -57,13 +58,24 @@ device_is_explicit = False
 # ============================================================
 
 
-def list_adb_devices():
+def list_adb_device_rows():
     output = subprocess.check_output([ADB, "devices"], text=True, timeout=15)
     return [
-        parts[0]
+        (parts[0], parts[1])
         for line in output.splitlines()[1:]
-        if len(parts := line.split()) >= 2 and parts[1] == "device"
+        if len(parts := line.split()) >= 2
     ]
+
+
+def list_adb_devices():
+    return [serial for serial, state in list_adb_device_rows() if state == "device"]
+
+
+def adb_connect_targets():
+    configured = os.environ.get("DUEL_STAGE_ADB_CONNECT")
+    if configured is None:
+        return DEFAULT_MUMU_ADB_ENDPOINTS
+    return tuple(target.strip() for target in configured.split(",") if target.strip())
 
 
 def connect_mumu_devices():
@@ -82,6 +94,28 @@ def connect_mumu_devices():
     logger.info("MuMu ADB：%s", (result.stdout or result.stderr or "").strip())
 
 
+def connect_adb_targets():
+    for target in adb_connect_targets():
+        result = subprocess.run(
+            [ADB, "connect", target],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+        )
+        logger.info("ADB connect %s：%s", target, (result.stdout or result.stderr or "").strip())
+
+
+def format_device_error(device_rows):
+    states = ", ".join(f"{serial}({state})" for serial, state in device_rows) or "无"
+    targets = ", ".join(adb_connect_targets()) or "未配置"
+    return (
+        "未找到在线 ADB 设备，请确认 MuMu 已启动 Android 且已开启 ADB 调试；"
+        f"ADB={ADB}；当前设备={states}；已尝试连接={targets}"
+    )
+
+
 def resolve_device():
     global DEVICE
 
@@ -89,9 +123,12 @@ def resolve_device():
     if not devices:
         connect_mumu_devices()
         devices = list_adb_devices()
+    if not devices:
+        connect_adb_targets()
+        devices = list_adb_devices()
 
     if not devices:
-        raise RuntimeError("未找到在线 ADB 设备，请确认 MuMu 已启动 Android 且已开启 ADB 调试")
+        raise RuntimeError(format_device_error(list_adb_device_rows()))
 
     DEVICE = devices[0]
     if len(devices) > 1:
