@@ -33,7 +33,6 @@ DEFAULT_MUMU_ADB_ENDPOINTS = ("127.0.0.1:16384", "127.0.0.1:7555")
 POLL_INTERVAL = 1.0
 ENTRY_IDLE_TIMEOUT = 12.0
 POST_DUEL_UNKNOWN_CLICK_INTERVAL = 1.0
-STAGE4_CENTER_CLICK_INTERVAL = 3.0
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
@@ -241,20 +240,6 @@ def click_screen_top_quarter():
         "tap",
         str(screen.width // 2),
         str(screen.height // 4),
-    )
-    time.sleep(POLL_INTERVAL)
-
-
-def click_screen_center():
-    logger.info("[Click] 正在点击：屏幕中心", stacklevel=2)
-
-    screen = capture_screen()
-    run_adb(
-        "shell",
-        "input",
-        "tap",
-        str(screen.width // 2),
-        str(screen.height // 2),
     )
     time.sleep(POLL_INTERVAL)
 
@@ -834,8 +819,6 @@ def enter_stage_4_duel():
 
 
 def play_stage_4_duel_until_victory():
-    last_center_click = time.monotonic()
-
     while True:
         screen = capture_screen()
 
@@ -851,11 +834,6 @@ def play_stage_4_duel_until_victory():
         if not match_roi("决斗进行中_标识", screen):
             check_and_recover_network()
             time.sleep(POLL_INTERVAL)
-            continue
-
-        if time.monotonic() - last_center_click >= STAGE4_CENTER_CLICK_INTERVAL:
-            click_screen_center()
-            last_center_click = time.monotonic()
             continue
 
         if match_roi("决斗进行中_对手回合", screen):

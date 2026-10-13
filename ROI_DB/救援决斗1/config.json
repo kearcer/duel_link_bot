@@ -1,0 +1,22 @@
+{
+  "name": "救援决斗1",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 305,
+    "y": 937,
+    "width": 108,
+    "height": 40
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 359,
+    "y": 957
+  },
+  "scene": "",
+  "tags": []
+}

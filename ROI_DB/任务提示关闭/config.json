@@ -1,0 +1,22 @@
+{
+  "name": "任务提示关闭",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 296,
+    "y": 773,
+    "width": 129,
+    "height": 65
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 360,
+    "y": 805
+  },
+  "scene": "",
+  "tags": []
+}

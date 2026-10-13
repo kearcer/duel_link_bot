@@ -1,0 +1,22 @@
+{
+  "name": "主页事件入口",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 490,
+    "y": 905,
+    "width": 79,
+    "height": 29
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 529,
+    "y": 919
+  },
+  "scene": "",
+  "tags": []
+}
