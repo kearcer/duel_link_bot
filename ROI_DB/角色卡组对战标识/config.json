@@ -5,17 +5,17 @@
     "height": 1280
   },
   "roi": {
-    "x": 20,
-    "y": 947,
-    "width": 340,
-    "height": 156
+    "x": 23,
+    "y": 671,
+    "width": 315,
+    "height": 151
   },
   "type": "template",
   "threshold": 0.85,
   "click": {
     "mode": "center",
-    "x": 190,
-    "y": 1025
+    "x": 180,
+    "y": 746
   },
   "scene": "",
   "tags": []
