@@ -1,0 +1,22 @@
+{
+  "name": "出现信息_关闭",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 149,
+    "y": 825,
+    "width": 120,
+    "height": 50
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 209,
+    "y": 850
+  },
+  "scene": "",
+  "tags": []
+}

@@ -1,0 +1,22 @@
+{
+  "name": "出现信息",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 293,
+    "y": 368,
+    "width": 151,
+    "height": 50
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 368,
+    "y": 393
+  },
+  "scene": "",
+  "tags": []
+}
