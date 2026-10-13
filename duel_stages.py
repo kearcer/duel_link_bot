@@ -55,6 +55,10 @@ network_recoveries = 0
 device_is_explicit = False
 
 
+class RestartCurrentStage(Exception):
+    pass
+
+
 # ============================================================
 # ADB / 截图 / ROI 基础能力
 # ============================================================
@@ -260,10 +264,27 @@ def click_screen_center():
 # ============================================================
 
 
-def is_main_page(screen=None):
+def handle_main_page_activity_legend(screen=None):
     if screen is None:
         screen = capture_screen()
-    return all(match_roi(name, screen) for name in MAIN_ROIS)
+
+    if not match_roi("活动传奇决斗者出现", screen):
+        return False
+
+    logger.info("[MainPage] 活动传奇决斗者出现 -> 活动传奇决斗者出现")
+    click_roi_center("活动传奇决斗者出现")
+    return True
+
+
+def is_main_page(screen=None, restart_on_activity=False):
+    if screen is None:
+        screen = capture_screen()
+
+    matched = all(match_roi(name, screen) for name in MAIN_ROIS)
+    if matched and restart_on_activity and handle_main_page_activity_legend(screen):
+        raise RestartCurrentStage("检测到活动传奇决斗者出现，已点击并重新执行当前 Stage")
+
+    return matched
 
 
 def is_legend_world_page(screen=None):
@@ -305,22 +326,22 @@ def wait_until_match(name):
         time.sleep(POLL_INTERVAL)
 
 
-def wait_until_main_page():
-    while not is_main_page():
+def wait_until_main_page(restart_on_activity=False):
+    while not is_main_page(restart_on_activity=restart_on_activity):
         check_and_recover_network()
         time.sleep(POLL_INTERVAL)
 
 
 def handle_main_page_pre_actions():
-    for detect_name, click_name in (
-        ("查看无名决斗者卡组_标识", "查看无名决斗者卡组_取消"),
-        ("活动传奇决斗者出现", "活动传奇决斗者出现"),
-    ):
-        screen = capture_screen()
-        if match_roi(detect_name, screen):
-            logger.info("[MainPage] %s -> %s", detect_name, click_name)
-            click_roi_center(click_name)
-            wait_until_main_page()
+    screen = capture_screen()
+    if match_roi("查看无名决斗者卡组_标识", screen):
+        logger.info("[MainPage] 查看无名决斗者卡组_标识 -> 查看无名决斗者卡组_取消")
+        click_roi_center("查看无名决斗者卡组_取消")
+        wait_until_main_page(restart_on_activity=True)
+
+    screen = capture_screen()
+    if handle_main_page_activity_legend(screen):
+        raise RestartCurrentStage("检测到活动传奇决斗者出现，已点击并重新执行当前 Stage")
 
 
 # ============================================================
@@ -471,7 +492,7 @@ def detect_post_duel_terminal(screen=None, extra_terminals=()):
     if match_roi("决斗", screen):
         return POST_PORTAL_PAGE
 
-    if is_main_page(screen):
+    if is_main_page(screen, restart_on_activity=True):
         return POST_MAIN_PAGE
 
     return None
@@ -580,12 +601,21 @@ def start_stage(number):
     network_recoveries = 0
     logger.info("[Stage%s] 开始", number)
 
-    if is_main_page():
+    if is_main_page(restart_on_activity=True):
         return True
 
     check_and_recover_network()
     logger.warning("请回到主界面")
     return False
+
+
+def run_stage_until_no_restart(number, stage_func):
+    while True:
+        try:
+            stage_func()
+            return
+        except RestartCurrentStage as error:
+            logger.info("[Stage%s] %s", number, error)
 
 
 # ============================================================
@@ -598,7 +628,7 @@ def run_stage_1():
         return
 
     while True:
-        wait_until_main_page()
+        wait_until_main_page(restart_on_activity=True)
         handle_main_page_pre_actions()
 
         if match_roi("路人负样本"):
@@ -637,7 +667,7 @@ def run_stage_1():
 def finish_stage_2():
     screen = capture_screen()
 
-    if is_main_page(screen):
+    if is_main_page(screen, restart_on_activity=True):
         logger.info("[Stage2] 已确认回到主界面")
         return
 
@@ -650,7 +680,7 @@ def finish_stage_2():
     ):
         logger.info("[Stage2] 检测到仍在世界流程中，点击切换世界返回主界面")
         click_roi_center("切换世界")
-        wait_until_main_page()
+        wait_until_main_page(restart_on_activity=True)
 
 
 def run_stage_2():
@@ -693,7 +723,7 @@ def run_stage_2():
                 # 先执行 finish_stage_2，再判断是否已经回到主页面。
                 finish_stage_2()
 
-                if is_main_page():
+                if is_main_page(restart_on_activity=True):
                     logger.info("[Stage2] 检测到已回到主界面，阶段二完成")
                     return
 
@@ -737,7 +767,7 @@ def run_stage_3():
 
         if entry_result == ENTRY_NO_RESOURCE:
             logger.info("[Stage3] 检测到资源不足/决斗宝珠不足，等待返回主页面")
-            wait_until_main_page()
+            wait_until_main_page(restart_on_activity=True)
             logger.info("[Stage3] 已回到主界面，阶段三完成")
             return
 
@@ -887,9 +917,9 @@ def run_stage_0():
     for round_number in range(1, 3):
         logger.info("[Stage0] 开始第%s轮：阶段1 → 阶段2 → 阶段3", round_number)
 
-        run_stage_1()
-        run_stage_2()
-        run_stage_3()
+        run_stage_until_no_restart(1, run_stage_1)
+        run_stage_until_no_restart(2, run_stage_2)
+        run_stage_until_no_restart(3, run_stage_3)
 
         if round_number < 2:
             logger.info("[Stage0] 第1轮完成，等待5分钟后开始第2轮")
@@ -953,7 +983,7 @@ def run_selected_stage(stage):
     }
 
     try:
-        stage_map[stage]()
+        run_stage_until_no_restart(stage, stage_map[stage])
         logger.info("[Menu] Stage%s 本次执行结束", stage)
         return True
 
