@@ -333,15 +333,20 @@ def wait_until_main_page(restart_on_activity=False):
 
 
 def handle_main_page_pre_actions():
+    handled = False
+
     screen = capture_screen()
     if match_roi("查看无名决斗者卡组_标识", screen):
         logger.info("[MainPage] 查看无名决斗者卡组_标识 -> 查看无名决斗者卡组_取消")
         click_roi_center("查看无名决斗者卡组_取消")
         wait_until_main_page(restart_on_activity=True)
+        handled = True
 
     screen = capture_screen()
     if handle_main_page_activity_legend(screen):
         raise RestartCurrentStage("检测到活动传奇决斗者出现，已点击并重新执行当前 Stage")
+
+    return handled
 
 
 # ============================================================
@@ -365,8 +370,7 @@ ENTRY_ACTIONS = (
     # 传送门次数/物品不足：点击退出并结束当前进入流程。
     ("人物对话界面_物品数量不足", "退出", ENTRY_NO_RESOURCE),
 
-    # 决斗宝珠不足/补充提示：
-    # 前半段也检测，出现后关闭补充页面，并按“资源不足”结束本次进入流程。
+    # 决斗宝珠不足/补充提示。
     ("决斗宝珠补充标识", "决斗宝珠补充页面关闭按钮", ENTRY_NO_RESOURCE),
 
     # 特殊活动：选择自己的卡组。
@@ -383,7 +387,7 @@ ENTRY_ACTIONS = (
 )
 
 
-def enter_auto_duel(idle_timeout=None):
+def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True):
     """
     三个 Stage 共用的“进入自动决斗”处理器。
 
@@ -414,13 +418,17 @@ def enter_auto_duel(idle_timeout=None):
             last_activity = time.monotonic()
             handled = True
             handled_click_name = click_name
+            handled_result = return_result
+
+            if detect_name == "决斗宝珠补充标识" and not orb_refill_is_resource:
+                handled_result = None
 
             if click_name is not None:
                 logger.info("[Entry] %s -> %s", detect_name, click_name)
                 click_roi_center(click_name)
 
-            if return_result is not None:
-                return return_result
+            if handled_result is not None:
+                return handled_result
 
             # 一轮只处理一个状态；处理后重新截图再判断。
             break
@@ -629,7 +637,8 @@ def run_stage_1():
 
     while True:
         wait_until_main_page(restart_on_activity=True)
-        handle_main_page_pre_actions()
+        if handle_main_page_pre_actions():
+            continue
 
         if match_roi("路人负样本"):
             logger.info("[Stage1] 路人负样本匹配，完成")
@@ -638,10 +647,13 @@ def run_stage_1():
         logger.info("[Stage1] 路人负样本未匹配，点击并尝试进入决斗")
         click_roi_center("路人负样本")
 
-        entry_result = enter_auto_duel(idle_timeout=ENTRY_IDLE_TIMEOUT)
+        entry_result = enter_auto_duel(
+            idle_timeout=ENTRY_IDLE_TIMEOUT,
+            orb_refill_is_resource=False,
+        )
 
         if entry_result == ENTRY_NO_RESOURCE:
-            logger.info("[Stage1] 检测到资源不足/决斗宝珠不足，阶段一结束")
+            logger.info("[Stage1] 检测到资源不足，阶段一结束")
             return
 
         if entry_result == ENTRY_NO_DUEL:
