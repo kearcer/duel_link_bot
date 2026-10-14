@@ -455,6 +455,7 @@ def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True):
 POST_DUEL_ACTIONS = (
     ("决斗胜利_好", "决斗胜利_好"),
     ("决斗胜利_下一步", "决斗胜利_下一步"),
+    ("决斗胜利_救援活动下一步", "决斗胜利_救援活动下一步"),
     ("决斗宝珠补充标识", "决斗宝珠补充页面关闭按钮"),
     ("战斗结束_好友列表", "战斗结束_好友列表_取消"),
     ("查看无名决斗者卡组_标识", "查看无名决斗者卡组_取消"),
@@ -470,7 +471,7 @@ POST_DUEL_ACTIONS = (
 )
 
 
-def detect_post_duel_terminal(screen=None, extra_terminals=()):
+def detect_post_duel_terminal(screen=None, extra_terminals=(), include_default_terminals=True):
     """
     统一判断结算阶段是否已经结束。
 
@@ -483,6 +484,9 @@ def detect_post_duel_terminal(screen=None, extra_terminals=()):
     for detect_name, result in extra_terminals:
         if match_roi(detect_name, screen):
             return result
+
+    if not include_default_terminals:
+        return None
 
     # 先检查传送门决斗页，避免已经回到 Stage3 入口后继续乱点。
     if match_roi("传送门人物界面_决斗", screen):
@@ -498,7 +502,7 @@ def detect_post_duel_terminal(screen=None, extra_terminals=()):
     return None
 
 
-def post_duel_click(click_name, extra_terminals=()):
+def post_duel_click(click_name, extra_terminals=(), include_default_terminals=True):
     """
     结算阶段专用点击：
       1. 点击匹配到的 ROI 对应按钮；
@@ -513,7 +517,7 @@ def post_duel_click(click_name, extra_terminals=()):
     click_roi_center(click_name)
 
     screen = capture_screen()
-    terminal = detect_post_duel_terminal(screen, extra_terminals)
+    terminal = detect_post_duel_terminal(screen, extra_terminals, include_default_terminals)
     if terminal:
         return terminal
 
@@ -521,7 +525,7 @@ def post_duel_click(click_name, extra_terminals=()):
     return None
 
 
-def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False):
+def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, include_default_terminals=True):
     """
     三个 Stage 共用的完整决斗结算处理器。
 
@@ -549,7 +553,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False):
     logger.info("[Duel] 胜利，进入统一结算处理")
 
     # 先处理第一次明确的“决斗胜利_好”。
-    terminal = post_duel_click("决斗胜利_好", extra_terminals)
+    terminal = post_duel_click("决斗胜利_好", extra_terminals, include_default_terminals)
     if terminal:
         logger.info("[Duel] 结算结束：%s", terminal)
         return terminal
@@ -558,7 +562,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False):
         screen = capture_screen()
 
         # 必须先判断终点，再进行任何额外点击。
-        terminal = detect_post_duel_terminal(screen, extra_terminals)
+        terminal = detect_post_duel_terminal(screen, extra_terminals, include_default_terminals)
         if terminal:
             logger.info("[Duel] 结算结束：%s", terminal)
             return terminal
@@ -569,7 +573,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False):
         for detect_name, click_name in POST_DUEL_ACTIONS:
             if match_roi(detect_name, screen):
                 logger.info("[PostDuel] %s -> %s", detect_name, click_name)
-                terminal = post_duel_click(click_name, extra_terminals)
+                terminal = post_duel_click(click_name, extra_terminals, include_default_terminals)
                 if terminal:
                     logger.info("[Duel] 结算结束：%s", terminal)
                     return terminal
@@ -970,15 +974,13 @@ def run_stage_5():
             logger.info("[Stage5] 未进入自动决斗，阶段五结束")
             return
 
-        finish_result = wait_and_finish_duel(extra_terminals=STAGE5_POST_TERMINALS)
+        finish_result = wait_and_finish_duel(
+            extra_terminals=STAGE5_POST_TERMINALS,
+            include_default_terminals=False,
+        )
 
         if finish_result == POST_EVENT_DUEL_PAGE:
             logger.info("[Stage5] 已回到救援/出现决斗界面，继续下一场")
-            continue
-
-        if finish_result == POST_MAIN_PAGE:
-            logger.info("[Stage5] 已回到主界面，重新进入主页事件")
-            click_stage_5_event_entry()
             continue
 
         logger.warning("[Stage5] 结算后进入非事件页面：%s，结束阶段五", finish_result)
