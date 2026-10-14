@@ -936,6 +936,13 @@ STAGE5_POST_TERMINALS = (
     ("出现决斗", POST_EVENT_DUEL_PAGE, "出现决斗"),
 )
 
+STAGE5_PRE_ACTIONS = (
+    ("救援决斗2", "救援决斗2"),
+    ("救援决斗1", "救援决斗1"),
+    ("出现决斗", "出现决斗"),
+    *POST_DUEL_ACTIONS,
+)
+
 
 def click_stage_5_event_entry():
     wait_until_main_page(restart_on_activity=True)
@@ -985,7 +992,7 @@ def run_stage_5():
     while True:
         entry_result = enter_auto_duel(
             idle_timeout=None,
-            extra_pre_actions=POST_DUEL_ACTIONS,
+            extra_pre_actions=STAGE5_PRE_ACTIONS,
         )
 
         if entry_result == ENTRY_NO_RESOURCE:
