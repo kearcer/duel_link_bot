@@ -937,8 +937,8 @@ def enter_stage_5_duel():
             return
 
         if match_roi("出现决斗", screen):
-            logger.info("[Stage5] 出现决斗 -> 决斗")
-            click_roi_center("决斗")
+            logger.info("[Stage5] 点击出现决斗")
+            click_roi_center("出现决斗")
             return
 
         if is_main_page(screen, restart_on_activity=True):
