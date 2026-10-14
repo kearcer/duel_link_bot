@@ -925,12 +925,12 @@ def enter_stage_5_duel():
         if match_roi("救援决斗2", screen):
             logger.info("[Stage5] 点击救援决斗2")
             click_roi_center("救援决斗2")
-            continue
+            return
 
         if match_roi("救援决斗1", screen):
             logger.info("[Stage5] 点击救援决斗1")
             click_roi_center("救援决斗1")
-            continue
+            return
 
         if match_roi("出现决斗", screen):
             logger.info("[Stage5] 出现决斗 -> 决斗")
