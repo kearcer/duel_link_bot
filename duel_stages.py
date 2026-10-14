@@ -499,8 +499,12 @@ def detect_post_duel_terminal(screen=None, extra_terminals=(), include_default_t
     if screen is None:
         screen = capture_screen()
 
-    for detect_name, result in extra_terminals:
+    for terminal in extra_terminals:
+        detect_name, result, *click_names = terminal
         if match_roi(detect_name, screen):
+            if click_names:
+                logger.info("[PostDuelTerminal] %s -> %s", detect_name, click_names[0])
+                click_roi_center(click_names[0])
             return result
 
     if not include_default_terminals:
@@ -927,9 +931,9 @@ def run_stage_4():
 
 
 STAGE5_POST_TERMINALS = (
-    ("救援决斗2", POST_EVENT_DUEL_PAGE),
-    ("救援决斗1", POST_EVENT_DUEL_PAGE),
-    ("出现决斗", POST_EVENT_DUEL_PAGE),
+    ("救援决斗2", POST_EVENT_DUEL_PAGE, "救援决斗2"),
+    ("救援决斗1", POST_EVENT_DUEL_PAGE, "救援决斗1"),
+    ("出现决斗", POST_EVENT_DUEL_PAGE, "出现决斗"),
 )
 
 
@@ -976,10 +980,9 @@ def run_stage_5():
         return
 
     click_stage_5_event_entry()
+    enter_stage_5_duel()
 
     while True:
-        enter_stage_5_duel()
-
         entry_result = enter_auto_duel(
             idle_timeout=None,
             extra_pre_actions=POST_DUEL_ACTIONS,
@@ -1001,7 +1004,7 @@ def run_stage_5():
         )
 
         if finish_result == POST_EVENT_DUEL_PAGE:
-            logger.info("[Stage5] 已回到救援/出现决斗界面，继续下一场")
+            logger.info("[Stage5] 已点击救援/出现决斗入口，进入下一场前处理")
             continue
 
         logger.warning("[Stage5] 结算后进入非事件页面：%s，结束阶段五", finish_result)
