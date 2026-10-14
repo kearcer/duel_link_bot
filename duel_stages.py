@@ -378,7 +378,7 @@ ENTRY_ACTIONS = (
 )
 
 
-def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True):
+def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True, extra_pre_actions=()):
     """
     三个 Stage 共用的“进入自动决斗”处理器。
 
@@ -393,6 +393,10 @@ def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True):
       - None：持续等待，直到自动决斗启动或命中资源不足。
       - 数字：连续这么多秒完全没有命中任何 ENTRY_ACTIONS 状态时，
         返回 ENTRY_NO_DUEL。
+
+        extra_pre_actions：
+            - 仅用于特定 Stage 的额外前处理动作；
+            - 每个元素为 (用于识别的 ROI, 匹配后要点击的 ROI)。
     """
     last_activity = time.monotonic()
 
@@ -430,6 +434,19 @@ def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True):
             if handled_click_name is None:
                 check_and_recover_network()
                 time.sleep(POLL_INTERVAL)
+            continue
+
+        for detect_name, click_name in extra_pre_actions:
+            if not match_roi(detect_name, screen):
+                continue
+
+            logger.info("[EntryExtra] %s -> %s", detect_name, click_name)
+            last_activity = time.monotonic()
+            click_roi_center(click_name)
+            handled = True
+            break
+
+        if handled:
             continue
 
         if check_and_recover_network():
@@ -962,7 +979,10 @@ def run_stage_5():
     while True:
         enter_stage_5_duel()
 
-        entry_result = enter_auto_duel(idle_timeout=None)
+        entry_result = enter_auto_duel(
+            idle_timeout=None,
+            extra_pre_actions=POST_DUEL_ACTIONS,
+        )
 
         if entry_result == ENTRY_NO_RESOURCE:
             logger.info("[Stage5] 检测到资源不足/决斗宝珠不足，等待返回主页面")
