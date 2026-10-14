@@ -142,6 +142,7 @@ class ROIManager:
         scene: str = "",
         tags: list[str] | None = None,
         overwrite: bool = False,
+        matcher_config: dict[str, Any] | None = None,
     ) -> Path:
         from PIL import Image, ImageDraw, ImageFont
 
@@ -206,6 +207,8 @@ class ROIManager:
             config["ocr"] = {"expected_text": expected_text, "match_mode": match_mode}
         if roi_type in {"color", "light_cyan_duelist_detector"}:
             config["color"] = {"detector": "light_cyan_duelist_detector", **LIGHT_CYAN_DEFAULTS}
+        if matcher_config:
+            config["matcher"] = matcher_config
         (directory / "config.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return directory
 

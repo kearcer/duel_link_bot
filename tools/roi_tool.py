@@ -161,6 +161,8 @@ class ROIApp:
         self.name_var = tk.StringVar()
         self.type_var = tk.StringVar(value="template")
         self.threshold_var = tk.StringVar(value="0.85")
+        self.min_gray_mean_var = tk.StringVar()
+        self.max_gray_mean_var = tk.StringVar()
         self.click_var = tk.StringVar(value="center")
         self.scene_var = tk.StringVar()
         self.tags_var = tk.StringVar()
@@ -173,6 +175,8 @@ class ROIApp:
         type_box.pack(fill="x")
         type_box.bind("<<ComboboxSelected>>", lambda _event: self._toggle_ocr())
         self._field(form, "阈值", self.threshold_var)
+        self._field(form, "灰度下限（可选）", self.min_gray_mean_var)
+        self._field(form, "灰度上限（可选）", self.max_gray_mean_var)
         ttk.Label(form, text="点击方式").pack(anchor="w", pady=(8, 2))
         ttk.Combobox(form, textvariable=self.click_var, state="readonly", values=("center", "custom", "none")).pack(fill="x")
         self._field(form, "场景（可选）", self.scene_var)
@@ -199,6 +203,16 @@ class ROIApp:
     def _field(parent: ttk.Frame, label: str, variable: tk.StringVar) -> None:
         ttk.Label(parent, text=label).pack(anchor="w", pady=(8, 2))
         ttk.Entry(parent, textvariable=variable).pack(fill="x")
+
+    @staticmethod
+    def _optional_float(value: str, label: str) -> float | None:
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            return float(value)
+        except ValueError as error:
+            raise ValueError(f"{label} must be a number") from error
 
     def _toggle_ocr(self) -> None:
         if hasattr(self, "validate_button"):
@@ -307,8 +321,17 @@ class ROIApp:
             overwrite = True
         try:
             threshold = float(self.threshold_var.get())
+            min_gray_mean = self._optional_float(self.min_gray_mean_var.get(), "灰度下限")
+            max_gray_mean = self._optional_float(self.max_gray_mean_var.get(), "灰度上限")
+            if min_gray_mean is not None and max_gray_mean is not None and min_gray_mean > max_gray_mean:
+                raise ValueError("灰度下限不能大于灰度上限")
+            matcher_config = {}
+            if min_gray_mean is not None:
+                matcher_config["min_gray_mean"] = min_gray_mean
+            if max_gray_mean is not None:
+                matcher_config["max_gray_mean"] = max_gray_mean
             tags = [tag.strip() for tag in self.tags_var.get().split(",") if tag.strip()]
-            directory = self.manager.save(name, self.image, self.selected_rect, self.type_var.get(), threshold, self.click_var.get(), self.custom_click, self.expected_var.get(), self.match_var.get(), self.scene_var.get(), tags, overwrite)
+            directory = self.manager.save(name, self.image, self.selected_rect, self.type_var.get(), threshold, self.click_var.get(), self.custom_click, self.expected_var.get(), self.match_var.get(), self.scene_var.get(), tags, overwrite, matcher_config=matcher_config or None)
         except (ValueError, FileExistsError, OSError) as error:
             messagebox.showerror("保存失败", str(error))
             return
@@ -329,6 +352,9 @@ class ROIApp:
         self.name_var.set(name)
         self.type_var.set(config.get("type", "template"))
         self.threshold_var.set(str(config.get("threshold", 0.85)))
+        matcher = config.get("matcher", {})
+        self.min_gray_mean_var.set(str(matcher.get("min_gray_mean", "")))
+        self.max_gray_mean_var.set(str(matcher.get("max_gray_mean", "")))
         self.click_var.set(config.get("click", {}).get("mode", "center"))
         self.scene_var.set(config.get("scene", ""))
         self.tags_var.set(",".join(config.get("tags", [])))
@@ -360,7 +386,10 @@ class ROIApp:
         dialog.title(f"ROI validate: {name}")
         dialog.resizable(True, True)
         result_text = tk.StringVar(value="Validating...")
-        threshold = tk.StringVar(value=str(config.get("matcher", {}).get("threshold", config.get("threshold", 0.85))))
+        saved_matcher = dict(config.get("matcher", {}))
+        threshold = tk.StringVar(value=str(saved_matcher.get("threshold", config.get("threshold", 0.85))))
+        min_gray_mean = tk.StringVar(value=str(saved_matcher.get("min_gray_mean", "")))
+        max_gray_mean = tk.StringVar(value=str(saved_matcher.get("max_gray_mean", "")))
         debug_images: list[object] = []
         debounce_id: str | None = None
 
@@ -369,6 +398,10 @@ class ROIApp:
             threshold_frame.pack(fill="x", padx=10, pady=(10, 2))
             ttk.Label(threshold_frame, text="Threshold").pack(side="left")
             ttk.Entry(threshold_frame, textvariable=threshold, width=10).pack(side="left", padx=6)
+            ttk.Label(threshold_frame, text="Gray min").pack(side="left", padx=(12, 0))
+            ttk.Entry(threshold_frame, textvariable=min_gray_mean, width=10).pack(side="left", padx=6)
+            ttk.Label(threshold_frame, text="Gray max").pack(side="left", padx=(12, 0))
+            ttk.Entry(threshold_frame, textvariable=max_gray_mean, width=10).pack(side="left", padx=6)
 
         light_param_vars: dict[str, tk.StringVar] = {}
         light_param_specs = {
@@ -451,14 +484,30 @@ class ROIApp:
                     value = float(threshold.get())
                     if not 0 <= value <= 1:
                         raise ValueError("threshold must be between 0 and 1")
-                    result = TemplateMatcher().match(screen, directory / "roi.png", config, value)
+                    updated_config = dict(config)
+                    matcher_settings = dict(updated_config.get("matcher", {}))
+                    min_gray_value = self._optional_float(min_gray_mean.get(), "Gray min")
+                    max_gray_value = self._optional_float(max_gray_mean.get(), "Gray max")
+                    if min_gray_value is not None and max_gray_value is not None and min_gray_value > max_gray_value:
+                        raise ValueError("Gray min cannot be greater than Gray max")
+                    matcher_settings.pop("min_gray_mean", None)
+                    matcher_settings.pop("max_gray_mean", None)
+                    if min_gray_value is not None:
+                        matcher_settings["min_gray_mean"] = min_gray_value
+                    if max_gray_value is not None:
+                        matcher_settings["max_gray_mean"] = max_gray_value
+                    if matcher_settings:
+                        updated_config["matcher"] = matcher_settings
+                    result = TemplateMatcher().match(screen, directory / "roi.png", updated_config, value)
                     location = result["match_location"] or result["best_location"]
                     point = result["click_point"]
                     point_text = f"({point['x']}, {point['y']})" if point else "none"
+                    gray_range = f"{result['min_gray_mean'] if result['min_gray_mean'] is not None else '-'} .. {result['max_gray_mean'] if result['max_gray_mean'] is not None else '-'}"
                     result_text.set(
                         f"Type: template\nMatched: {'YES' if result['matched'] else 'NO'}\n"
                         f"Should click: {'YES' if result['should_click'] else 'NO'}\n"
                         f"Score: {result['score']:.4f}\nThreshold: {result['threshold']:.4f}\n"
+                        f"Gray mean: {result['gray_mean']:.2f}\nGray range: {gray_range}\n"
                         f"Match location: ({location['x']}, {location['y']})\nGlobal click: {point_text}\n"
                         f"Resized: {'YES' if result['resized'] else 'NO'}"
                     )

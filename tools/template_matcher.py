@@ -85,7 +85,18 @@ class TemplateMatcher:
         _, score, _, location = cv2.minMaxLoc(result)
         score = float(score)
         threshold = float(matcher.get("threshold", 0.85) if threshold is None else threshold)
-        matched = score >= threshold
+        matched_crop = haystack[
+            location[1]:location[1] + match_needle.shape[0],
+            location[0]:location[0] + match_needle.shape[1],
+        ]
+        gray_mean = float(matched_crop.mean())
+        min_gray_mean = matcher.get("min_gray_mean")
+        max_gray_mean = matcher.get("max_gray_mean")
+        brightness_matched = (
+            (min_gray_mean is None or gray_mean >= float(min_gray_mean))
+            and (max_gray_mean is None or gray_mean <= float(max_gray_mean))
+        )
+        matched = score >= threshold and brightness_matched
         match_location = {"x": x + location[0], "y": y + location[1]}
         click = config.get("click", {})
         if click.get("mode") == "none":
@@ -101,13 +112,16 @@ class TemplateMatcher:
                       (match_location["x"] + needle.shape[1] - 1, match_location["y"] + needle.shape[0] - 1), color, 2)
         if click_point:
             cv2.drawMarker(preview, (click_point["x"], click_point["y"]), color, cv2.MARKER_CROSS, 14, 2)
-        cv2.putText(preview, f"score={score:.4f} threshold={threshold:.4f} {'MATCH' if matched else 'NO MATCH'}", (8, 24),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2, cv2.LINE_AA)
+        cv2.putText(preview, f"score={score:.4f} threshold={threshold:.4f} gray={gray_mean:.1f} {'MATCH' if matched else 'NO MATCH'}", (8, 24),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2, cv2.LINE_AA)
         return {
             "matched": matched,
             "should_click": matched and click_point is not None,
             "score": score,
             "threshold": threshold,
+            "gray_mean": gray_mean,
+            "min_gray_mean": min_gray_mean,
+            "max_gray_mean": max_gray_mean,
             "match_location": match_location if matched else None,
             "best_location": match_location,
             "click_point": click_point if matched else None,

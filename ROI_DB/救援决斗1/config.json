@@ -12,6 +12,9 @@
   },
   "type": "template",
   "threshold": 0.85,
+  "matcher": {
+    "min_gray_mean": 35
+  },
   "click": {
     "mode": "center",
     "x": 359,
