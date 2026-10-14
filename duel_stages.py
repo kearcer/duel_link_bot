@@ -46,6 +46,7 @@ ENTRY_NO_DUEL = "NO_DUEL"
 POST_MAIN_PAGE = "MAIN_PAGE"
 POST_PORTAL_PAGE = "PORTAL_PAGE"
 POST_ARENA_DUEL_PAGE = "ARENA_DUEL_PAGE"
+POST_EVENT_DUEL_PAGE = "EVENT_DUEL_PAGE"
 
 manager = ROIManager(DB)
 matcher = TemplateMatcher()
@@ -253,6 +254,11 @@ def handle_main_page_activity_legend(screen=None):
     if screen is None:
         screen = capture_screen()
 
+    if match_roi("出现信息", screen):
+        logger.info("[MainPage] 出现信息 -> 出现信息_关闭")
+        click_roi_center("出现信息_关闭")
+        screen = capture_screen()
+
     if not match_roi("活动传奇决斗者出现", screen):
         return False
 
@@ -452,6 +458,7 @@ POST_DUEL_ACTIONS = (
     ("决斗宝珠补充标识", "决斗宝珠补充页面关闭按钮"),
     ("战斗结束_好友列表", "战斗结束_好友列表_取消"),
     ("查看无名决斗者卡组_标识", "查看无名决斗者卡组_取消"),
+    ("任务提示关闭", "任务提示关闭"),
     ("决斗结束下一步", "决斗结束下一步"),
     ("决斗胜利_活动好_3倍", "决斗胜利_活动好_3倍"),
     ("决斗胜利_活动好", "决斗胜利_活动好"),
@@ -893,6 +900,92 @@ def run_stage_4():
 
 
 # ============================================================
+# Stage 5：主页事件救援决斗循环
+# ============================================================
+
+
+STAGE5_POST_TERMINALS = (
+    ("救援决斗2", POST_EVENT_DUEL_PAGE),
+    ("救援决斗1", POST_EVENT_DUEL_PAGE),
+    ("出现决斗", POST_EVENT_DUEL_PAGE),
+)
+
+
+def click_stage_5_event_entry():
+    wait_until_main_page(restart_on_activity=True)
+    handle_main_page_pre_actions()
+    logger.info("[Stage5] 点击主页事件入口")
+    click_roi_center("主页事件入口")
+
+
+def enter_stage_5_duel():
+    while True:
+        screen = capture_screen()
+
+        if match_roi("救援决斗2", screen):
+            logger.info("[Stage5] 点击救援决斗2")
+            click_roi_center("救援决斗2")
+            continue
+
+        if match_roi("救援决斗1", screen):
+            logger.info("[Stage5] 点击救援决斗1")
+            click_roi_center("救援决斗1")
+            continue
+
+        if match_roi("出现决斗", screen):
+            logger.info("[Stage5] 出现决斗 -> 决斗")
+            click_roi_center("决斗")
+            return
+
+        if is_main_page(screen, restart_on_activity=True):
+            logger.info("[Stage5] 检测到主界面，重新进入主页事件")
+            handle_main_page_pre_actions()
+            click_roi_center("主页事件入口")
+            continue
+
+        if check_and_recover_network():
+            continue
+
+        time.sleep(POLL_INTERVAL)
+
+
+def run_stage_5():
+    if not start_stage(5):
+        return
+
+    click_stage_5_event_entry()
+
+    while True:
+        enter_stage_5_duel()
+
+        entry_result = enter_auto_duel(idle_timeout=None)
+
+        if entry_result == ENTRY_NO_RESOURCE:
+            logger.info("[Stage5] 检测到资源不足/决斗宝珠不足，等待返回主页面")
+            wait_until_main_page(restart_on_activity=True)
+            logger.info("[Stage5] 已回到主界面，阶段五完成")
+            return
+
+        if entry_result != ENTRY_AUTO_STARTED:
+            logger.info("[Stage5] 未进入自动决斗，阶段五结束")
+            return
+
+        finish_result = wait_and_finish_duel(extra_terminals=STAGE5_POST_TERMINALS)
+
+        if finish_result == POST_EVENT_DUEL_PAGE:
+            logger.info("[Stage5] 已回到救援/出现决斗界面，继续下一场")
+            continue
+
+        if finish_result == POST_MAIN_PAGE:
+            logger.info("[Stage5] 已回到主界面，重新进入主页事件")
+            click_stage_5_event_entry()
+            continue
+
+        logger.warning("[Stage5] 结算后进入非事件页面：%s，结束阶段五", finish_result)
+        return
+
+
+# ============================================================
 # Stage 0：保留原有组合执行入口
 # ============================================================
 
@@ -941,20 +1034,20 @@ def wait_for_any_key(message="请按任意键返回阶段选择菜单..."):
 
 
 def select_stage():
-    """循环读取 0/1/2/3/4；输入 q/quit/exit 可退出程序。"""
+    """循环读取 0/1/2/3/4/5；输入 q/quit/exit 可退出程序。"""
     while True:
         try:
-            value = input("Select stage [0/1/2/3/4] (q=退出): ").strip().lower()
+            value = input("Select stage [0/1/2/3/4/5] (q=退出): ").strip().lower()
         except EOFError:
             return None
 
         if value in {"q", "quit", "exit"}:
             return None
 
-        if value in {"0", "1", "2", "3", "4"}:
+        if value in {"0", "1", "2", "3", "4", "5"}:
             return int(value)
 
-        print("请输入 0、1、2、3、4，或 q 退出。")
+        print("请输入 0、1、2、3、4、5，或 q 退出。")
 
 
 def run_selected_stage(stage):
@@ -970,6 +1063,7 @@ def run_selected_stage(stage):
         2: run_stage_2,
         3: run_stage_3,
         4: run_stage_4,
+        5: run_stage_5,
     }
 
     try:
@@ -1005,7 +1099,7 @@ def main():
     # stage 改为可选：
     # - 直接运行 duel_stages.py -> 进入菜单
     # - duel_stages.py 1 -> 先运行 Stage1，结束后仍返回菜单
-    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3, 4))
+    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3, 4, 5))
     parser.add_argument("--adb", default=ADB)
     parser.add_argument("--device", help="ADB 设备序列号；默认自动发现在线设备")
     parser.add_argument("--db", type=Path, default=DB)

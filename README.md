@@ -16,6 +16,7 @@
 .\run_duel_stage.bat 1
 .\run_duel_stage.bat 2
 .\run_duel_stage.bat 3
+.\run_duel_stage.bat 5
 ```
 
 阶段含义由脚本内逻辑定义：
@@ -25,6 +26,7 @@
 - `2`：传奇决斗者世界巡检流程。
 - `3`：传送门循环决斗流程。
 - `4`：竞技场校色对战循环流程。
+- `5`：主页事件救援决斗循环流程。
 
 ## ADB 配置
 
