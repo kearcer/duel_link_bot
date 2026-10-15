@@ -1,0 +1,20 @@
+{
+  "name": "活动得分_好2",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 283,
+    "y": 845,
+    "width": 144,
+    "height": 49
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "none"
+  },
+  "scene": "",
+  "tags": []
+}
