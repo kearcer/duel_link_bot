@@ -360,6 +360,13 @@ def handle_main_page_pre_actions():
     handled = False
 
     screen = capture_screen()
+    if match_roi("战斗结束_好友列表", screen):
+        logger.info("[MainPage] 战斗结束_好友列表 -> 战斗结束_好友列表_取消")
+        click_roi_center("战斗结束_好友列表_取消")
+        wait_until_main_page(restart_on_activity=True)
+        handled = True
+
+    screen = capture_screen()
     if match_roi("查看无名决斗者卡组_标识", screen):
         logger.info("[MainPage] 查看无名决斗者卡组_标识 -> 查看无名决斗者卡组_取消")
         click_roi_center("查看无名决斗者卡组_取消")
