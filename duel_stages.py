@@ -145,6 +145,39 @@ def resolve_device():
     return DEVICE
 
 
+def ensure_explicit_device_ready():
+    rows = list_adb_device_rows()
+    if any(serial == DEVICE and state == "device" for serial, state in rows):
+        return DEVICE
+
+    if ":" in DEVICE:
+        result = subprocess.run(
+            [ADB, "connect", DEVICE],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+        )
+        logger.info("ADB connect %s：%s", DEVICE, (result.stdout or result.stderr or "").strip())
+        rows = list_adb_device_rows()
+        if any(serial == DEVICE and state == "device" for serial, state in rows):
+            return DEVICE
+
+    raise RuntimeError(f"指定 ADB 设备未在线：{DEVICE}；{format_device_error(rows)}")
+
+
+def wait_until_device_ready():
+    while True:
+        try:
+            device = ensure_explicit_device_ready() if device_is_explicit else resolve_device()
+            logger.info("ADB 设备已就绪：%s", device)
+            return device
+        except (OSError, subprocess.SubprocessError, RuntimeError) as error:
+            logger.warning("ADB 设备未就绪，5秒后重试：%s", error)
+            time.sleep(5)
+
+
 def run_adb(*args, capture_output=False):
     global DEVICE
 
@@ -1153,6 +1186,8 @@ def main():
         ],
         force=True,
     )
+
+    wait_until_device_ready()
 
     pending_stage = args.stage
 
