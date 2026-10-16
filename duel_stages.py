@@ -412,6 +412,7 @@ ENTRY_ACTIONS = (
 
     # Stage3 第一次进入或每场结束后返回传送门人物页时，点击决斗入口。
     ("传送门人物界面_决斗", "传送门人物界面_决斗", None),
+    ("传送门人物界面_超速决斗", "传送门人物界面_超速决斗", None),
 
     # “决斗”只作为已知状态标识，不点击，继续等待“自动决斗”。
     ("决斗", None, None),
@@ -553,6 +554,9 @@ def detect_post_duel_terminal(screen=None, extra_terminals=(), include_default_t
 
     # 先检查传送门决斗页，避免已经回到 Stage3 入口后继续乱点。
     if match_roi("传送门人物界面_决斗", screen):
+        return POST_PORTAL_PAGE
+
+    if match_roi("传送门人物界面_超速决斗", screen):
         return POST_PORTAL_PAGE
 
     # 某些画面中“决斗”本身也可作为传送门决斗界面的状态标识。
