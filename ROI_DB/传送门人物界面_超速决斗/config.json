@@ -1,0 +1,22 @@
+{
+  "name": "传送门人物界面_超速决斗",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 274,
+    "y": 1083,
+    "width": 169,
+    "height": 50
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 358,
+    "y": 1108
+  },
+  "scene": "",
+  "tags": []
+}
