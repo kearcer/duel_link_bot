@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_怪物区_对手_负样本3",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 468,
+    "y": 427,
+    "width": 62,
+    "height": 68
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 499,
+    "y": 461
+  },
+  "scene": "",
+  "tags": []
+}
