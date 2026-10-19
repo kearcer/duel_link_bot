@@ -1,0 +1,20 @@
+{
+  "name": "自动决斗_负样本",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 423,
+    "y": 1048,
+    "width": 236,
+    "height": 98
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "none"
+  },
+  "scene": "",
+  "tags": []
+}
