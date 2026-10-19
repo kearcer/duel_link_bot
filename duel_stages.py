@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import random
 import shutil
 import subprocess
 import sys
@@ -37,7 +36,6 @@ ENTRY_IDLE_TIMEOUT = 12.0
 POST_DUEL_UNKNOWN_CLICK_INTERVAL = 1.0
 TOP_QUARTER_FALLBACK_MISSES = 2
 DRAG_WAIT_SECONDS = 2.0
-GRAY_MEAN_MATCH_TOLERANCE = 20.0
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
@@ -327,31 +325,6 @@ def drag_between_points(start, end, duration_ms=500):
         str(duration_ms),
     )
     time.sleep(DRAG_WAIT_SECONDS)
-
-
-def match_roi_gray_mean(name, screen=None, tolerance=GRAY_MEAN_MATCH_TOLERANCE):
-    from PIL import Image, ImageStat
-
-    if screen is None:
-        screen = capture_screen()
-
-    roi = manager.get_scaled_rect(name, *screen.size)
-    current = screen.crop((roi["x"], roi["y"], roi["x"] + roi["width"], roi["y"] + roi["height"])).convert("L")
-    template = Image.open(manager.path(name) / "roi.png").convert("L")
-    current_mean = ImageStat.Stat(current).mean[0]
-    template_mean = ImageStat.Stat(template).mean[0]
-    delta = abs(current_mean - template_mean)
-    matched = delta <= tolerance
-    logger.info(
-        "[GrayMatch] %s: current=%.1f template=%.1f delta=%.1f tolerance=%.1f %s",
-        name,
-        current_mean,
-        template_mean,
-        delta,
-        tolerance,
-        "MATCH" if matched else "NO MATCH",
-    )
-    return matched
 
 
 def click_if_match(name, screen=None):
@@ -1175,36 +1148,16 @@ def drag_stage_6_monster_zone_parts():
 
 def stage_6_end_turn():
     click_if_match("决斗进行中_我的回合选择")
-    click_if_match("决斗进行中_我的回合选择_回合结束")
+    if click_if_match("决斗进行中_我的回合选择_回合结束"):
+        return
+    click_if_match("决斗进行中_我的回合选择_2以后回合结束")
 
 
 def stage_6_battle_actions():
-    screen = capture_screen()
-    own_empty = [match_roi_gray_mean(name, screen) for name in STAGE6_OWN_MONSTER_NEGATIVES]
-    opponent_empty = [match_roi_gray_mean(name, screen) for name in STAGE6_OPPONENT_MONSTER_NEGATIVES]
-    own_monsters = [index for index, empty in enumerate(own_empty) if not empty]
-    opponent_monsters = [index for index, empty in enumerate(opponent_empty) if not empty]
-
-    if not own_monsters:
-        logger.info("[Stage6] 我方怪物区全部命中负样本，直接结束回合")
-        stage_6_end_turn()
-        return
-
-    if opponent_monsters:
-        logger.info("[Stage6] 双方都有怪物，按我方怪物数量拖拽攻击")
-        for own_index in own_monsters:
-            opponent_index = random.choice(opponent_monsters)
-            drag_between_points(
-                roi_center(STAGE6_OWN_MONSTER_NEGATIVES[own_index], screen),
-                roi_center(STAGE6_OPPONENT_MONSTER_NEGATIVES[opponent_index], screen),
-            )
-            screen = capture_screen()
-    else:
-        logger.info("[Stage6] 对方怪物区全部命中负样本，拖拽到对方中间位置")
-        target = roi_center("决斗中_怪物区_对手_负样本2", screen)
-        for own_index in own_monsters:
-            drag_between_points(roi_center(STAGE6_OWN_MONSTER_NEGATIVES[own_index], screen), target)
-            screen = capture_screen()
+    logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
+    for own_name, opponent_name in zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES):
+        screen = capture_screen()
+        drag_between_points(roi_center(own_name, screen), roi_center(opponent_name, screen))
 
     stage_6_end_turn()
 
@@ -1238,6 +1191,8 @@ def play_stage_6_duel_until_victory():
         click_if_match("决斗进行中_我的回合选择")
         if click_if_match("决斗进行中_我的回合选择_回合结束"):
             continue
+        else:
+            logger.info("[Stage6] 未检测到回合结束，尝试进入战斗阶段")
 
         if click_if_match("决斗中_战斗"):
             stage_6_battle_actions()
