@@ -36,6 +36,7 @@ ENTRY_IDLE_TIMEOUT = 12.0
 POST_DUEL_UNKNOWN_CLICK_INTERVAL = 1.0
 TOP_QUARTER_FALLBACK_MISSES = 2
 DRAG_WAIT_SECONDS = 2.0
+DRAG_DISTANCE_RATIO = 0.25
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
@@ -313,15 +314,27 @@ def roi_center(name, screen=None):
 
 
 def drag_between_points(start, end, duration_ms=500, wait_seconds=DRAG_WAIT_SECONDS):
-    logger.info("[Drag] (%s,%s) -> (%s,%s)", start["x"], start["y"], end["x"], end["y"])
+    drag_end = {
+        "x": round(start["x"] + (end["x"] - start["x"]) * DRAG_DISTANCE_RATIO),
+        "y": round(start["y"] + (end["y"] - start["y"]) * DRAG_DISTANCE_RATIO),
+    }
+    logger.info(
+        "[Drag] (%s,%s) -> (%s,%s)，目标方向 (%s,%s)",
+        start["x"],
+        start["y"],
+        drag_end["x"],
+        drag_end["y"],
+        end["x"],
+        end["y"],
+    )
     run_adb(
         "shell",
         "input",
         "swipe",
         str(start["x"]),
         str(start["y"]),
-        str(end["x"]),
-        str(end["y"]),
+        str(drag_end["x"]),
+        str(drag_end["y"]),
         str(duration_ms),
     )
     time.sleep(wait_seconds)
