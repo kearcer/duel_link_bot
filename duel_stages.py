@@ -1157,7 +1157,7 @@ def stage_6_end_turn():
 def stage_6_battle_actions():
     logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
     for wait_seconds, (own_name, opponent_name) in zip(
-        (4.0, 2.0, 2.0),
+        (5.0, 5.0, 5.0),
         zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES),
     ):
         screen = capture_screen()
