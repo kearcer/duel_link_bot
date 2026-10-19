@@ -955,8 +955,6 @@ def enter_stage_4_duel():
         if check_and_recover_network():
             continue
 
-        logger.info("[Stage4] 未命中可点击按钮，执行通用推进点击")
-        click_screen_top_quarter()
         time.sleep(POLL_INTERVAL)
 
 
@@ -1002,6 +1000,8 @@ def play_stage_4_duel_until_victory():
         if check_and_recover_network():
             continue
 
+        logger.info("[Stage4] 决斗中未命中可点击按钮，执行通用推进点击")
+        click_screen_top_quarter()
         time.sleep(POLL_INTERVAL)
 
 
