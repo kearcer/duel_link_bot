@@ -34,6 +34,7 @@ DEFAULT_MUMU_ADB_ENDPOINTS = ("127.0.0.1:16384", "127.0.0.1:7555")
 POLL_INTERVAL = 1.0
 ENTRY_IDLE_TIMEOUT = 12.0
 POST_DUEL_UNKNOWN_CLICK_INTERVAL = 1.0
+TOP_QUARTER_FALLBACK_MISSES = 3
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
@@ -652,7 +653,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
     1. 自动决斗已经点击以后，每 15 秒检测一次“决斗胜利_好”。
     2. 检测到以后进入统一结算循环。
     3. 每一轮只处理一个匹配界面，然后重新截图。
-     4. 如果完全没有识别到已知界面，补点一次上四分之一正中间，
+         4. 如果连续多轮完全没有识别到已知界面，补点一次上四分之一正中间，
        用于升级/物品/动画等无 ROI 页面。
      5. 直到回到标准主页面，或者回到传送门“决斗”界面。
     """
@@ -677,6 +678,8 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
         logger.info("[Duel] 结算结束：%s", terminal)
         return terminal
 
+    unknown_click_misses = 0
+
     while True:
         screen = capture_screen()
 
@@ -697,6 +700,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
                     logger.info("[Duel] 结算结束：%s", terminal)
                     return terminal
 
+                unknown_click_misses = 0
                 handled = True
                 break
 
@@ -706,10 +710,20 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
         # 未识别到任何已知结算界面：
         # 用通用点击推进升级、掉落物品、经验动画等没有专门 ROI 的页面。
         if check_and_recover_network():
+            unknown_click_misses = 0
             continue
 
-        logger.info("[PostDuel] 未命中已知结算模板，执行通用推进点击")
-        click_screen_top_quarter()
+        unknown_click_misses += 1
+        logger.info(
+            "[PostDuel] 未命中已知结算模板：%s/%s",
+            unknown_click_misses,
+            TOP_QUARTER_FALLBACK_MISSES,
+        )
+        if unknown_click_misses >= TOP_QUARTER_FALLBACK_MISSES:
+            logger.info("[PostDuel] 连续未命中已知结算模板，执行通用推进点击")
+            click_screen_top_quarter()
+            unknown_click_misses = 0
+
         time.sleep(POST_DUEL_UNKNOWN_CLICK_INTERVAL)
 
 
@@ -959,6 +973,8 @@ def enter_stage_4_duel():
 
 
 def play_stage_4_duel_until_victory():
+    unknown_click_misses = 0
+
     while True:
         screen = capture_screen()
 
@@ -968,6 +984,7 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_返回", screen):
             logger.info("[Stage4] 点击决斗进行中_返回")
+            unknown_click_misses = 0
             click_roi_center("决斗进行中_返回")
             continue
 
@@ -978,6 +995,7 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_对手回合", screen):
             logger.info("[Stage4] 对手回合，继续等待")
+            unknown_click_misses = 0
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -985,6 +1003,7 @@ def play_stage_4_duel_until_victory():
         for action_name in STAGE4_TURN_END_ACTIONS:
             if match_roi(action_name, screen):
                 logger.info("[Stage4] 点击回合结束：%s", action_name)
+                unknown_click_misses = 0
                 click_roi_center(action_name)
                 handled = True
                 break
@@ -994,14 +1013,25 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_我的回合", screen) and match_roi("决斗进行中_我的回合选择", screen):
             logger.info("[Stage4] 点击我的回合选择")
+            unknown_click_misses = 0
             click_roi_center("决斗进行中_我的回合选择")
             continue
 
         if check_and_recover_network():
+            unknown_click_misses = 0
             continue
 
-        logger.info("[Stage4] 决斗中未命中可点击按钮，执行通用推进点击")
-        click_screen_top_quarter()
+        unknown_click_misses += 1
+        logger.info(
+            "[Stage4] 决斗中未命中可点击按钮：%s/%s",
+            unknown_click_misses,
+            TOP_QUARTER_FALLBACK_MISSES,
+        )
+        if unknown_click_misses >= TOP_QUARTER_FALLBACK_MISSES:
+            logger.info("[Stage4] 决斗中连续未命中可点击按钮，执行通用推进点击")
+            click_screen_top_quarter()
+            unknown_click_misses = 0
+
         time.sleep(POLL_INTERVAL)
 
 
