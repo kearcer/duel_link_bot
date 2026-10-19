@@ -1169,6 +1169,9 @@ def drag_stage_6_monster_zone_parts():
         if click_if_match("决斗中_发动效果", screen):
             continue
 
+        logger.info("[Stage6] 未命中通常召唤/发动效果，执行通用推进点击")
+        click_screen_top_quarter()
+
 
 def stage_6_end_turn():
     click_if_match("决斗进行中_我的回合选择")
