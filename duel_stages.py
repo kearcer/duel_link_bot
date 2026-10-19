@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -41,6 +42,7 @@ NETWORK_ROI = "没有发现网络链接_重启"
 ENTRY_AUTO_STARTED = "AUTO_DUEL_STARTED"
 ENTRY_NO_RESOURCE = "NO_RESOURCE"
 ENTRY_NO_DUEL = "NO_DUEL"
+ENTRY_AUTO_DUEL_NEGATIVE = "AUTO_DUEL_NEGATIVE"
 
 # 决斗结束统一处理器的返回值
 POST_MAIN_PAGE = "MAIN_PAGE"
@@ -84,9 +86,42 @@ def adb_connect_targets():
     return tuple(target.strip() for target in configured.split(",") if target.strip())
 
 
+def find_mumu_manager():
+    configured = os.environ.get("DUEL_STAGE_MUMU_MANAGER")
+    if configured:
+        path = Path(configured)
+        if path.is_file():
+            return path
+
+    candidates = [APP_DIR / "MuMuManager.exe"]
+
+    adb_path = shutil.which(ADB) or ADB
+    try:
+        candidates.append(Path(adb_path).resolve().with_name("MuMuManager.exe"))
+    except OSError:
+        candidates.append(Path(adb_path).with_name("MuMuManager.exe"))
+
+    for base_name in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        base = os.environ.get(base_name)
+        if not base:
+            continue
+
+        base_path = Path(base)
+        for pattern in (
+            "Netease/*/shell/MuMuManager.exe",
+            "Netease/*/MuMuManager.exe",
+            "MuMu*/shell/MuMuManager.exe",
+            "MuMu*/MuMuManager.exe",
+        ):
+            candidates.extend(base_path.glob(pattern))
+
+    return next((path for path in candidates if path.is_file()), None)
+
+
 def connect_mumu_devices():
-    mumu_manager = Path(ADB).with_name("MuMuManager.exe")
-    if not mumu_manager.is_file():
+    mumu_manager = find_mumu_manager()
+    if mumu_manager is None:
+        logger.info("未找到 MuMuManager.exe，跳过 MuMu 自动连接")
         return
 
     result = subprocess.run(
@@ -356,6 +391,21 @@ def wait_until_main_page(restart_on_activity=False):
         time.sleep(POLL_INTERVAL)
 
 
+def click_exit_until_main_page():
+    while True:
+        screen = capture_screen()
+        if is_main_page(screen, restart_on_activity=True):
+            return
+
+        if match_roi("退出", screen):
+            logger.info("[Exit] 退出 -> 退出")
+            click_roi_center("退出")
+            continue
+
+        check_and_recover_network()
+        time.sleep(POLL_INTERVAL)
+
+
 def handle_main_page_pre_actions():
     handled = False
 
@@ -419,7 +469,12 @@ ENTRY_ACTIONS = (
 )
 
 
-def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True, extra_pre_actions=()):
+def enter_auto_duel(
+    idle_timeout=None,
+    orb_refill_is_resource=True,
+    extra_pre_actions=(),
+    auto_duel_negative_is_exit=False,
+):
     """
     三个 Stage 共用的“进入自动决斗”处理器。
 
@@ -445,6 +500,10 @@ def enter_auto_duel(idle_timeout=None, orb_refill_is_resource=True, extra_pre_ac
         screen = capture_screen()
         handled = False
         handled_click_name = None
+
+        if auto_duel_negative_is_exit and match_roi("自动决斗_负样本", screen):
+            logger.info("[Entry] 命中：自动决斗_负样本")
+            return ENTRY_AUTO_DUEL_NEGATIVE
 
         for detect_name, click_name, return_result in ENTRY_ACTIONS:
             if not match_roi(detect_name, screen):
@@ -573,13 +632,8 @@ def post_duel_click(click_name, extra_terminals=(), include_default_terminals=Tr
     """
     结算阶段专用点击：
       1. 点击匹配到的 ROI 对应按钮；
-      2. 等页面变化；
-      3. 若此时还没有到主页面/传送门决斗页，再点击一次屏幕上四分之一正中间。
-
-    第二次通用点击用于：
-      - 加速结算动画；
-      - 跳过升级界面；
-      - 跳过获得物品等没有单独 ROI 的中间页。
+            2. 等页面变化；
+            3. 若此时已经到主页面/传送门决斗页，直接返回终点。
     """
     click_roi_center(click_name)
 
@@ -588,7 +642,6 @@ def post_duel_click(click_name, extra_terminals=(), include_default_terminals=Tr
     if terminal:
         return terminal
 
-    click_screen_top_quarter()
     return None
 
 
@@ -599,10 +652,9 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
     1. 自动决斗已经点击以后，每 15 秒检测一次“决斗胜利_好”。
     2. 检测到以后进入统一结算循环。
     3. 每一轮只处理一个匹配界面，然后重新截图。
-    4. 所有已知结算点击后，再补点一次屏幕上四分之一正中间。
-    5. 如果完全没有识别到已知界面，也补点一次上四分之一正中间，
+     4. 如果完全没有识别到已知界面，补点一次上四分之一正中间，
        用于升级/物品/动画等无 ROI 页面。
-    6. 直到回到标准主页面，或者回到传送门“决斗”界面。
+     5. 直到回到标准主页面，或者回到传送门“决斗”界面。
     """
 
     logger.info("[Duel] 等待战斗结束")
@@ -838,7 +890,17 @@ def run_stage_3():
     while True:
         # enter_auto_duel 会统一处理：
         # 传送门人物界面_决斗 / 人物对话 / 卡组选择 / 自动决斗 / 物品不足。
-        entry_result = enter_auto_duel(idle_timeout=None)
+        entry_result = enter_auto_duel(
+            idle_timeout=None,
+            orb_refill_is_resource=False,
+            auto_duel_negative_is_exit=True,
+        )
+
+        if entry_result == ENTRY_AUTO_DUEL_NEGATIVE:
+            logger.info("[Stage3] 检测到自动决斗负样本，尝试退出并结束阶段三")
+            click_exit_until_main_page()
+            logger.info("[Stage3] 已回到主界面，阶段三完成")
+            return
 
         if entry_result == ENTRY_NO_RESOURCE:
             logger.info("[Stage3] 检测到资源不足/决斗宝珠不足，等待返回主页面")
