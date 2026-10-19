@@ -1017,8 +1017,6 @@ def enter_stage_4_duel():
 
 
 def play_stage_4_duel_until_victory():
-    unknown_click_misses = 0
-
     while True:
         screen = capture_screen()
 
@@ -1028,7 +1026,6 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_返回", screen):
             logger.info("[Stage4] 点击决斗进行中_返回")
-            unknown_click_misses = 0
             click_roi_center("决斗进行中_返回")
             continue
 
@@ -1039,7 +1036,6 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_对手回合", screen):
             logger.info("[Stage4] 对手回合，继续等待")
-            unknown_click_misses = 0
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -1047,7 +1043,6 @@ def play_stage_4_duel_until_victory():
         for action_name in STAGE4_TURN_END_ACTIONS:
             if match_roi(action_name, screen):
                 logger.info("[Stage4] 点击回合结束：%s", action_name)
-                unknown_click_misses = 0
                 click_roi_center(action_name)
                 handled = True
                 break
@@ -1057,24 +1052,14 @@ def play_stage_4_duel_until_victory():
 
         if match_roi("决斗进行中_我的回合", screen) and match_roi("决斗进行中_我的回合选择", screen):
             logger.info("[Stage4] 点击我的回合选择")
-            unknown_click_misses = 0
             click_roi_center("决斗进行中_我的回合选择")
             continue
 
         if check_and_recover_network():
-            unknown_click_misses = 0
             continue
 
-        unknown_click_misses += 1
-        logger.info(
-            "[Stage4] 决斗中未命中可点击按钮：%s/%s",
-            unknown_click_misses,
-            TOP_QUARTER_FALLBACK_MISSES,
-        )
-        if unknown_click_misses >= TOP_QUARTER_FALLBACK_MISSES:
-            logger.info("[Stage4] 决斗中连续未命中可点击按钮，执行通用推进点击")
-            click_screen_top_quarter()
-            unknown_click_misses = 0
+        logger.info("[Stage4] 决斗中未命中可点击按钮，执行通用推进点击")
+        click_screen_top_quarter()
 
         time.sleep(POLL_INTERVAL)
 
@@ -1157,7 +1142,7 @@ def stage_6_end_turn():
 def stage_6_battle_actions():
     logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
     for wait_seconds, (own_name, opponent_name) in zip(
-        (5.0, 5.0, 5.0),
+        (3.0, 3.0, 3.0),
         zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES),
     ):
         screen = capture_screen()
@@ -1189,7 +1174,9 @@ def play_stage_6_duel_until_victory():
             continue
 
         if not match_roi("决斗进行中_我的回合选择", screen):
-            check_and_recover_network()
+            if not check_and_recover_network():
+                logger.info("[Stage6] 决斗中未命中我的回合选择，执行通用推进点击")
+                click_screen_top_quarter()
             time.sleep(POLL_INTERVAL)
             continue
 
