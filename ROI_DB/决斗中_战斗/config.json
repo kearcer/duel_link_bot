@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_战斗",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 515,
+    "y": 789,
+    "width": 161,
+    "height": 97
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 595,
+    "y": 837
+  },
+  "scene": "",
+  "tags": []
+}

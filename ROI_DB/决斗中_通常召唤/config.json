@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_通常召唤",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 211,
+    "y": 907,
+    "width": 128,
+    "height": 102
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 275,
+    "y": 958
+  },
+  "scene": "",
+  "tags": []
+}

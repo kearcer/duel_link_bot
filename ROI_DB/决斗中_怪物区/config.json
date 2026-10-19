@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_怪物区",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 50,
+    "y": 1122,
+    "width": 449,
+    "height": 157
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 274,
+    "y": 1200
+  },
+  "scene": "",
+  "tags": []
+}

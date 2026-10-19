@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_怪物区_负样本2",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 330,
+    "y": 688,
+    "width": 63,
+    "height": 78
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 361,
+    "y": 727
+  },
+  "scene": "",
+  "tags": []
+}
