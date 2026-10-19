@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -34,7 +35,9 @@ DEFAULT_MUMU_ADB_ENDPOINTS = ("127.0.0.1:16384", "127.0.0.1:7555")
 POLL_INTERVAL = 1.0
 ENTRY_IDLE_TIMEOUT = 12.0
 POST_DUEL_UNKNOWN_CLICK_INTERVAL = 1.0
-TOP_QUARTER_FALLBACK_MISSES = 3
+TOP_QUARTER_FALLBACK_MISSES = 2
+DRAG_WAIT_SECONDS = 2.0
+GRAY_MEAN_MATCH_TOLERANCE = 20.0
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
@@ -44,6 +47,7 @@ ENTRY_AUTO_STARTED = "AUTO_DUEL_STARTED"
 ENTRY_NO_RESOURCE = "NO_RESOURCE"
 ENTRY_NO_DUEL = "NO_DUEL"
 ENTRY_AUTO_DUEL_NEGATIVE = "AUTO_DUEL_NEGATIVE"
+ENTRY_MANUAL_DUEL_STARTED = "MANUAL_DUEL_STARTED"
 
 # 决斗结束统一处理器的返回值
 POST_MAIN_PAGE = "MAIN_PAGE"
@@ -299,6 +303,64 @@ def click_roi_center(name):
     time.sleep(POLL_INTERVAL)
 
 
+def roi_center(name, screen=None):
+    if screen is None:
+        screen = capture_screen()
+
+    roi = manager.get_scaled_rect(name, *screen.size)
+    return {
+        "x": round(roi["x"] + roi["width"] / 2),
+        "y": round(roi["y"] + roi["height"] / 2),
+    }
+
+
+def drag_between_points(start, end, duration_ms=500):
+    logger.info("[Drag] (%s,%s) -> (%s,%s)", start["x"], start["y"], end["x"], end["y"])
+    run_adb(
+        "shell",
+        "input",
+        "swipe",
+        str(start["x"]),
+        str(start["y"]),
+        str(end["x"]),
+        str(end["y"]),
+        str(duration_ms),
+    )
+    time.sleep(DRAG_WAIT_SECONDS)
+
+
+def match_roi_gray_mean(name, screen=None, tolerance=GRAY_MEAN_MATCH_TOLERANCE):
+    from PIL import Image, ImageStat
+
+    if screen is None:
+        screen = capture_screen()
+
+    roi = manager.get_scaled_rect(name, *screen.size)
+    current = screen.crop((roi["x"], roi["y"], roi["x"] + roi["width"], roi["y"] + roi["height"])).convert("L")
+    template = Image.open(manager.path(name) / "roi.png").convert("L")
+    current_mean = ImageStat.Stat(current).mean[0]
+    template_mean = ImageStat.Stat(template).mean[0]
+    delta = abs(current_mean - template_mean)
+    matched = delta <= tolerance
+    logger.info(
+        "[GrayMatch] %s: current=%.1f template=%.1f delta=%.1f tolerance=%.1f %s",
+        name,
+        current_mean,
+        template_mean,
+        delta,
+        tolerance,
+        "MATCH" if matched else "NO MATCH",
+    )
+    return matched
+
+
+def click_if_match(name, screen=None):
+    if match_roi(name, screen):
+        click_roi_center(name)
+        return True
+    return False
+
+
 def click_screen_top_quarter():
     """点击图像上四分之一处的正中间。仅在结算阶段作为通用推进点击使用。"""
     logger.info("[Click] 正在点击：屏幕顶部四分之一处", stacklevel=2)
@@ -475,6 +537,7 @@ def enter_auto_duel(
     orb_refill_is_resource=True,
     extra_pre_actions=(),
     auto_duel_negative_is_exit=False,
+    manual_duel_start=False,
 ):
     """
     三个 Stage 共用的“进入自动决斗”处理器。
@@ -507,6 +570,9 @@ def enter_auto_duel(
             return ENTRY_AUTO_DUEL_NEGATIVE
 
         for detect_name, click_name, return_result in ENTRY_ACTIONS:
+            if manual_duel_start and detect_name == "自动决斗":
+                continue
+
             if not match_roi(detect_name, screen):
                 continue
 
@@ -518,6 +584,11 @@ def enter_auto_duel(
 
             if detect_name == "决斗宝珠补充标识" and not orb_refill_is_resource:
                 handled_result = None
+
+            if detect_name == "决斗" and manual_duel_start:
+                click_name = "决斗"
+                handled_click_name = click_name
+                handled_result = ENTRY_MANUAL_DUEL_STARTED
 
             if click_name is not None:
                 logger.info("[Entry] %s -> %s", detect_name, click_name)
@@ -1065,6 +1136,150 @@ def run_stage_4():
 
 
 # ============================================================
+# Stage 6：传送门手动决斗循环
+# ============================================================
+
+
+STAGE6_OWN_MONSTER_NEGATIVES = (
+    "决斗中_怪物区_负样本1",
+    "决斗中_怪物区_负样本2",
+    "决斗中_怪物区_负样本3",
+)
+STAGE6_OPPONENT_MONSTER_NEGATIVES = (
+    "决斗中_怪物区_对手_负样本1",
+    "决斗中_怪物区_对手_负样本2",
+    "决斗中_怪物区_对手_负样本3",
+)
+
+
+def drag_stage_6_monster_zone_parts():
+    screen = capture_screen()
+    roi = manager.get_scaled_rect("决斗中_怪物区", *screen.size)
+    start_y = round(roi["y"] + roi["height"] / 2)
+    end_y = max(0, round(start_y - roi["height"]))
+
+    for index in range(7):
+        x = round(roi["x"] + roi["width"] * (index + 0.5) / 7)
+        logger.info("[Stage6] 怪物区第 %s/7 份向上拖拽", index + 1)
+        drag_between_points({"x": x, "y": start_y}, {"x": x, "y": end_y})
+
+        screen = capture_screen()
+        if click_if_match("决斗中_通常召唤", screen):
+            continue
+        if click_if_match("决斗中_发动效果", screen):
+            continue
+
+
+def stage_6_end_turn():
+    click_if_match("决斗进行中_我的回合选择")
+    click_if_match("决斗进行中_我的回合选择_回合结束")
+
+
+def stage_6_battle_actions():
+    screen = capture_screen()
+    own_empty = [match_roi_gray_mean(name, screen) for name in STAGE6_OWN_MONSTER_NEGATIVES]
+    opponent_empty = [match_roi_gray_mean(name, screen) for name in STAGE6_OPPONENT_MONSTER_NEGATIVES]
+    own_monsters = [index for index, empty in enumerate(own_empty) if not empty]
+    opponent_monsters = [index for index, empty in enumerate(opponent_empty) if not empty]
+
+    if not own_monsters:
+        logger.info("[Stage6] 我方怪物区全部命中负样本，直接结束回合")
+        stage_6_end_turn()
+        return
+
+    if opponent_monsters:
+        logger.info("[Stage6] 双方都有怪物，按我方怪物数量拖拽攻击")
+        for own_index in own_monsters:
+            opponent_index = random.choice(opponent_monsters)
+            drag_between_points(
+                roi_center(STAGE6_OWN_MONSTER_NEGATIVES[own_index], screen),
+                roi_center(STAGE6_OPPONENT_MONSTER_NEGATIVES[opponent_index], screen),
+            )
+            screen = capture_screen()
+    else:
+        logger.info("[Stage6] 对方怪物区全部命中负样本，拖拽到对方中间位置")
+        target = roi_center("决斗中_怪物区_对手_负样本2", screen)
+        for own_index in own_monsters:
+            drag_between_points(roi_center(STAGE6_OWN_MONSTER_NEGATIVES[own_index], screen), target)
+            screen = capture_screen()
+
+    stage_6_end_turn()
+
+
+def play_stage_6_duel_until_victory():
+    while True:
+        screen = capture_screen()
+
+        if match_roi("决斗胜利_好", screen):
+            logger.info("[Stage6] 检测到决斗胜利")
+            return
+
+        if not match_roi("决斗进行中_标识", screen):
+            check_and_recover_network()
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        if match_roi("决斗进行中_对手回合", screen):
+            logger.info("[Stage6] 对手回合，继续等待")
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        if not match_roi("决斗进行中_我的回合选择", screen):
+            check_and_recover_network()
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        logger.info("[Stage6] 我的回合，执行手动决斗流程")
+        drag_stage_6_monster_zone_parts()
+
+        click_if_match("决斗进行中_我的回合选择")
+        if click_if_match("决斗进行中_我的回合选择_回合结束"):
+            continue
+
+        if click_if_match("决斗中_战斗"):
+            stage_6_battle_actions()
+
+        time.sleep(POLL_INTERVAL)
+
+
+def run_stage_6():
+    if not start_stage(6):
+        return
+
+    handle_main_page_pre_actions()
+    logger.info("[Stage6] 开始传送门手动决斗")
+    click_roi_center("传送门")
+
+    while True:
+        entry_result = enter_auto_duel(
+            idle_timeout=None,
+            orb_refill_is_resource=False,
+            manual_duel_start=True,
+        )
+
+        if entry_result == ENTRY_NO_RESOURCE:
+            logger.info("[Stage6] 检测到资源不足，等待返回主页面")
+            wait_until_main_page(restart_on_activity=True)
+            logger.info("[Stage6] 已回到主界面，阶段六完成")
+            return
+
+        if entry_result != ENTRY_MANUAL_DUEL_STARTED:
+            logger.info("[Stage6] 未进入手动决斗，阶段六结束")
+            return
+
+        play_stage_6_duel_until_victory()
+        finish_result = wait_and_finish_duel(victory_already_visible=True)
+
+        if finish_result == POST_PORTAL_PAGE:
+            logger.info("[Stage6] 已回到传送门决斗界面，继续下一场")
+            continue
+
+        if finish_result == POST_MAIN_PAGE:
+            logger.info("[Stage6] 已回到主界面，阶段六完成")
+            return
+
+
+# ============================================================
 # Stage 5：主页事件救援决斗循环
 # ============================================================
 
@@ -1206,20 +1421,20 @@ def wait_for_any_key(message="请按任意键返回阶段选择菜单..."):
 
 
 def select_stage():
-    """循环读取 0/1/2/3/4/5；输入 q/quit/exit 可退出程序。"""
+    """循环读取 0/1/2/3/4/5/6；输入 q/quit/exit 可退出程序。"""
     while True:
         try:
-            value = input("Select stage [0/1/2/3/4/5] (q=退出): ").strip().lower()
+            value = input("Select stage [0/1/2/3/4/5/6] (q=退出): ").strip().lower()
         except EOFError:
             return None
 
         if value in {"q", "quit", "exit"}:
             return None
 
-        if value in {"0", "1", "2", "3", "4", "5"}:
+        if value in {"0", "1", "2", "3", "4", "5", "6"}:
             return int(value)
 
-        print("请输入 0、1、2、3、4、5，或 q 退出。")
+        print("请输入 0、1、2、3、4、5、6，或 q 退出。")
 
 
 def run_selected_stage(stage):
@@ -1236,6 +1451,7 @@ def run_selected_stage(stage):
         3: run_stage_3,
         4: run_stage_4,
         5: run_stage_5,
+        6: run_stage_6,
     }
 
     try:
@@ -1271,7 +1487,7 @@ def main():
     # stage 改为可选：
     # - 直接运行 duel_stages.py -> 进入菜单
     # - duel_stages.py 1 -> 先运行 Stage1，结束后仍返回菜单
-    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3, 4, 5))
+    parser.add_argument("stage", nargs="?", type=int, choices=(0, 1, 2, 3, 4, 5, 6))
     parser.add_argument("--adb", default=ADB)
     parser.add_argument("--device", help="ADB 设备序列号；默认自动发现在线设备")
     parser.add_argument("--db", type=Path, default=DB)
