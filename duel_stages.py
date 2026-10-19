@@ -313,10 +313,10 @@ def roi_center(name, screen=None):
     }
 
 
-def drag_between_points(start, end, duration_ms=500, wait_seconds=DRAG_WAIT_SECONDS):
+def drag_between_points(start, end, duration_ms=500, wait_seconds=DRAG_WAIT_SECONDS, distance_ratio=1.0):
     drag_end = {
-        "x": round(start["x"] + (end["x"] - start["x"]) * DRAG_DISTANCE_RATIO),
-        "y": round(start["y"] + (end["y"] - start["y"]) * DRAG_DISTANCE_RATIO),
+        "x": round(start["x"] + (end["x"] - start["x"]) * distance_ratio),
+        "y": round(start["y"] + (end["y"] - start["y"]) * distance_ratio),
     }
     logger.info(
         "[Drag] (%s,%s) -> (%s,%s)，目标方向 (%s,%s)",
@@ -1163,6 +1163,7 @@ def stage_6_battle_actions():
             roi_center(own_name, screen),
             roi_center(opponent_name, screen),
             wait_seconds=wait_seconds,
+            distance_ratio=DRAG_DISTANCE_RATIO,
         )
 
     stage_6_end_turn()
