@@ -312,7 +312,7 @@ def roi_center(name, screen=None):
     }
 
 
-def drag_between_points(start, end, duration_ms=500):
+def drag_between_points(start, end, duration_ms=500, wait_seconds=DRAG_WAIT_SECONDS):
     logger.info("[Drag] (%s,%s) -> (%s,%s)", start["x"], start["y"], end["x"], end["y"])
     run_adb(
         "shell",
@@ -324,7 +324,7 @@ def drag_between_points(start, end, duration_ms=500):
         str(end["y"]),
         str(duration_ms),
     )
-    time.sleep(DRAG_WAIT_SECONDS)
+    time.sleep(wait_seconds)
 
 
 def click_if_match(name, screen=None):
@@ -1130,10 +1130,11 @@ def drag_stage_6_monster_zone_parts():
     roi = manager.get_scaled_rect("决斗中_怪物区", *screen.size)
     start_y = round(roi["y"] + roi["height"] / 2)
     end_y = max(0, round(start_y - roi["height"]))
+    part_count = 4
 
-    for index in range(7):
-        x = round(roi["x"] + roi["width"] * (index + 0.5) / 7)
-        logger.info("[Stage6] 怪物区第 %s/7 份向上拖拽", index + 1)
+    for index in range(part_count):
+        x = round(roi["x"] + roi["width"] * (index + 0.5) / part_count)
+        logger.info("[Stage6] 怪物区第 %s/%s 份向上拖拽", index + 1, part_count)
         drag_between_points({"x": x, "y": start_y}, {"x": x, "y": end_y})
 
         screen = capture_screen()
@@ -1155,9 +1156,16 @@ def stage_6_end_turn():
 
 def stage_6_battle_actions():
     logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
-    for own_name, opponent_name in zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES):
+    for wait_seconds, (own_name, opponent_name) in zip(
+        (4.0, 2.0, 2.0),
+        zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES),
+    ):
         screen = capture_screen()
-        drag_between_points(roi_center(own_name, screen), roi_center(opponent_name, screen))
+        drag_between_points(
+            roi_center(own_name, screen),
+            roi_center(opponent_name, screen),
+            wait_seconds=wait_seconds,
+        )
 
     stage_6_end_turn()
 
