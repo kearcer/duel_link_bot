@@ -572,8 +572,8 @@ def enter_auto_duel(
             if detect_name == "决斗宝珠补充标识" and not orb_refill_is_resource:
                 handled_result = None
 
-            if detect_name == "决斗" and manual_duel_start:
-                click_name = "决斗"
+            if detect_name in ("决斗", "超速决斗") and manual_duel_start:
+                click_name = detect_name
                 handled_click_name = click_name
                 handled_result = ENTRY_MANUAL_DUEL_STARTED
 
@@ -972,10 +972,33 @@ def run_stage_3():
         )
 
         if entry_result == ENTRY_AUTO_DUEL_NEGATIVE:
-            logger.info("[Stage3] 检测到自动决斗负样本，尝试退出并结束阶段三")
-            click_exit_until_main_page()
-            logger.info("[Stage3] 已回到主界面，阶段三完成")
-            return
+            logger.info("[Stage3] 检测到自动决斗负样本，切换到手动决斗流程")
+            manual_entry_result = enter_auto_duel(
+                idle_timeout=None,
+                orb_refill_is_resource=False,
+                manual_duel_start=True,
+            )
+
+            if manual_entry_result == ENTRY_NO_RESOURCE:
+                logger.info("[Stage3] 手动决斗资源不足，等待返回主页面")
+                wait_until_main_page(restart_on_activity=True)
+                logger.info("[Stage3] 已回到主界面，阶段三完成")
+                return
+
+            if manual_entry_result != ENTRY_MANUAL_DUEL_STARTED:
+                logger.info("[Stage3] 未进入手动决斗，阶段三结束")
+                return
+
+            play_stage_6_duel_until_victory()
+            finish_result = wait_and_finish_duel(victory_already_visible=True)
+
+            if finish_result == POST_PORTAL_PAGE:
+                logger.info("[Stage3] 手动决斗结束，继续下一场")
+                continue
+
+            if finish_result == POST_MAIN_PAGE:
+                logger.info("[Stage3] 手动决斗结束并回到主界面，阶段三完成")
+                return
 
         if entry_result == ENTRY_NO_RESOURCE:
             logger.info("[Stage3] 检测到资源不足/决斗宝珠不足，等待返回主页面")
