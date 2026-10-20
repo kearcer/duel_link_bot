@@ -1,0 +1,22 @@
+{
+  "name": "战斗进行中_发生倒退_确认",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 430,
+    "y": 671,
+    "width": 164,
+    "height": 52
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 512,
+    "y": 697
+  },
+  "scene": "",
+  "tags": []
+}
