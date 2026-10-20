@@ -5,13 +5,17 @@
     "height": 1280
   },
   "roi": {
-    "x": 445,
-    "y": 1053,
-    "width": 210,
-    "height": 43
+    "x": 439,
+    "y": 1051,
+    "width": 214,
+    "height": 98
   },
   "type": "template",
-  "threshold": 0.85,
+  "threshold": 0.9,
+  "matcher": {
+    "grayscale": true,
+    "min_gray_mean": 60
+  },
   "click": {
     "mode": "none"
   },

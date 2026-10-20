@@ -1,0 +1,22 @@
+{
+  "name": "超速决斗",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 104,
+    "y": 1094,
+    "width": 157,
+    "height": 42
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 182,
+    "y": 1115
+  },
+  "scene": "",
+  "tags": []
+}
