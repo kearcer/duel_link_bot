@@ -1194,6 +1194,8 @@ def stage_6_battle_actions():
             wait_seconds=wait_seconds,
             distance_ratio=DRAG_DISTANCE_RATIO,
         )
+        if click_if_match("战斗进行中_发生倒退_确认"):
+            logger.info("[Stage6] 检测到发生倒退，已点击确认")
 
     stage_6_end_turn()
 
