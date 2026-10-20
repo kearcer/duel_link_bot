@@ -1164,8 +1164,10 @@ def drag_stage_6_monster_zone_parts():
 
         screen = capture_screen()
         if click_if_match("决斗中_通常召唤", screen):
-            break
+            time.sleep(4)
+            continue
         if click_if_match("决斗中_发动效果", screen):
+            time.sleep(4)
             continue
 
         logger.info("[Stage6] 未命中通常召唤/发动效果，执行通用推进点击")
