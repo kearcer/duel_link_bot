@@ -347,9 +347,9 @@ def click_if_match(name, screen=None):
     return False
 
 
-def click_screen_top_quarter():
-    """点击图像上四分之一处的正中间。仅在结算阶段作为通用推进点击使用。"""
-    logger.info("[Click] 正在点击：屏幕顶部四分之一处", stacklevel=2)
+def click_screen_top_fifth():
+    """点击图像上五分之一处的正中间。仅在结算阶段作为通用推进点击使用。"""
+    logger.info("[Click] 正在点击：屏幕顶部五分之一处", stacklevel=2)
 
     screen = capture_screen()
     run_adb(
@@ -357,7 +357,7 @@ def click_screen_top_quarter():
         "input",
         "tap",
         str(screen.width // 2),
-        str(screen.height // 4),
+        str(screen.height // 5),
     )
     time.sleep(POLL_INTERVAL)
 
@@ -513,8 +513,9 @@ ENTRY_ACTIONS = (
     ("传送门人物界面_决斗", "传送门人物界面_决斗", None),
     ("传送门人物界面_超速决斗", "传送门人物界面_超速决斗", None),
 
-    # “决斗”只作为已知状态标识，不点击，继续等待“自动决斗”。
-    ("决斗", None, None),
+    # “决斗/超速决斗”既可作为已知状态标识，也可在手动决斗阶段作为启动入口。
+    ("决斗", "决斗", None),
+    ("超速决斗", "超速决斗", None),
 )
 
 
@@ -676,8 +677,11 @@ def detect_post_duel_terminal(screen=None, extra_terminals=(), include_default_t
     if match_roi("传送门人物界面_超速决斗", screen):
         return POST_PORTAL_PAGE
 
-    # 某些画面中“决斗”本身也可作为传送门决斗界面的状态标识。
+    # 某些画面中“决斗/超速决斗”本身也可作为传送门决斗界面的状态标识。
     if match_roi("决斗", screen):
+        return POST_PORTAL_PAGE
+
+    if match_roi("超速决斗", screen):
         return POST_PORTAL_PAGE
 
     if is_main_page(screen, restart_on_activity=True):
@@ -710,7 +714,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
     1. 自动决斗已经点击以后，每 15 秒检测一次“决斗胜利_好”。
     2. 检测到以后进入统一结算循环。
     3. 每一轮只处理一个匹配界面，然后重新截图。
-         4. 如果连续多轮完全没有识别到已知界面，补点一次上四分之一正中间，
+         4. 如果连续多轮完全没有识别到已知界面，补点一次上五分之一正中间，
        用于升级/物品/动画等无 ROI 页面。
      5. 直到回到标准主页面，或者回到传送门“决斗”界面。
     """
@@ -778,7 +782,7 @@ def wait_and_finish_duel(extra_terminals=(), victory_already_visible=False, incl
         )
         if unknown_click_misses >= TOP_QUARTER_FALLBACK_MISSES:
             logger.info("[PostDuel] 连续未命中已知结算模板，执行通用推进点击")
-            click_screen_top_quarter()
+            click_screen_top_fifth()
             unknown_click_misses = 0
 
         time.sleep(POST_DUEL_UNKNOWN_CLICK_INTERVAL)
@@ -1072,7 +1076,7 @@ def play_stage_4_duel_until_victory():
             continue
 
         logger.info("[Stage4] 决斗中未命中可点击按钮，执行通用推进点击")
-        click_screen_top_quarter()
+        click_screen_top_fifth()
 
         time.sleep(POLL_INTERVAL)
 
@@ -1130,19 +1134,19 @@ def drag_stage_6_monster_zone_parts():
     end_y = max(0, round(start_y - roi["height"]))
     part_count = 4
 
-    for index in range(part_count):
+    for index in range(1, part_count - 1):
         x = round(roi["x"] + roi["width"] * (index + 0.5) / part_count)
         logger.info("[Stage6] 怪物区第 %s/%s 份向上拖拽", index + 1, part_count)
         drag_between_points({"x": x, "y": start_y}, {"x": x, "y": end_y})
 
         screen = capture_screen()
         if click_if_match("决斗中_通常召唤", screen):
-            continue
+            break
         if click_if_match("决斗中_发动效果", screen):
             continue
 
         logger.info("[Stage6] 未命中通常召唤/发动效果，执行通用推进点击")
-        click_screen_top_quarter()
+        click_screen_top_fifth()
 
 
 def stage_6_end_turn():
@@ -1155,7 +1159,7 @@ def stage_6_end_turn():
 def stage_6_battle_actions():
     logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
     for wait_seconds, (own_name, opponent_name) in zip(
-        (3.0, 3.0, 3.0),
+        (7.0, 7.0, 2.0),
         zip(STAGE6_OWN_MONSTER_NEGATIVES, STAGE6_OPPONENT_MONSTER_NEGATIVES),
     ):
         screen = capture_screen()
@@ -1178,6 +1182,11 @@ def play_stage_6_duel_until_victory():
             return
 
         if not match_roi("决斗进行中_标识", screen):
+            if match_roi("超速决斗", screen):
+                logger.info("[Stage6] 检测到超速决斗入口，点击并继续等待")
+                click_roi_center("超速决斗")
+                time.sleep(POLL_INTERVAL)
+                continue
             check_and_recover_network()
             time.sleep(POLL_INTERVAL)
             continue
@@ -1190,7 +1199,7 @@ def play_stage_6_duel_until_victory():
         if not match_roi("决斗进行中_我的回合选择", screen):
             if not check_and_recover_network():
                 logger.info("[Stage6] 决斗中未命中我的回合选择，执行通用推进点击")
-                click_screen_top_quarter()
+                click_screen_top_fifth()
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -1205,6 +1214,9 @@ def play_stage_6_duel_until_victory():
 
         if click_if_match("决斗中_战斗"):
             stage_6_battle_actions()
+        elif click_if_match("超速决斗", screen):
+            logger.info("[Stage6] 检测到超速决斗按钮，点击并继续")
+            click_roi_center("超速决斗")
 
         time.sleep(POLL_INTERVAL)
 
