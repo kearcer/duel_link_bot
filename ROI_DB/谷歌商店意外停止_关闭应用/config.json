@@ -1,0 +1,22 @@
+{
+  "name": "谷歌商店意外停止_关闭应用",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 79,
+    "y": 718,
+    "width": 294,
+    "height": 78
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 226,
+    "y": 757
+  },
+  "scene": "",
+  "tags": []
+}
