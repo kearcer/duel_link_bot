@@ -1053,9 +1053,15 @@ def enter_stage_4_duel():
             click_roi_center("校色对战决斗")
             return
 
-        if match_roi("角色卡组对战标识", screen):
-            logger.info("[Stage4] 点击角色卡组对战标识")
-            click_roi_center("角色卡组对战标识")
+        for marker_name in ("角色卡组对战标识", "角色卡组对战标识2"):
+            if match_roi(marker_name, screen):
+                logger.info("[Stage4] 点击%s", marker_name)
+                click_roi_center(marker_name)
+                break
+        else:
+            marker_name = None
+
+        if marker_name is not None:
             continue
 
         if check_and_recover_network():
