@@ -40,6 +40,7 @@ DRAG_DISTANCE_RATIO = 0.25
 
 MAIN_ROIS = ("传送门", "竞技场", "商店", "决斗工作室")
 NETWORK_ROI = "没有发现网络链接_重启"
+GOOGLE_PLAY_CRASH_ROI = "谷歌商店意外停止_关闭应用"
 
 # 进入自动决斗阶段的统一返回值
 ENTRY_AUTO_STARTED = "AUTO_DUEL_STARTED"
@@ -412,7 +413,16 @@ def check_and_recover_network():
 
     recovered = False
 
-    while match_roi(NETWORK_ROI):
+    while True:
+        if match_roi(GOOGLE_PLAY_CRASH_ROI):
+            logger.info("[Recovery] 检测到谷歌商店意外停止，点击关闭应用")
+            click_roi_center(GOOGLE_PLAY_CRASH_ROI)
+            recovered = True
+            continue
+
+        if not match_roi(NETWORK_ROI):
+            return recovered
+
         if network_recoveries >= 10:
             raise SystemExit("[Network] 累计恢复10次后仍存在网络异常，终止执行")
 
@@ -424,8 +434,6 @@ def check_and_recover_network():
         click_roi_center(NETWORK_ROI)
         time.sleep(POLL_INTERVAL)
         recovered = True
-
-    return recovered
 
 
 def wait_until_match(name):
