@@ -1181,6 +1181,13 @@ def stage_6_end_turn():
     click_if_match("决斗进行中_我的回合选择_2以后回合结束")
 
 
+def stage_6_confirm_battle_error():
+    if click_if_match("战斗进行中_发生倒退_确认"):
+        logger.info("[Stage6] 检测到战斗错误确认弹窗，已点击确认")
+        return True
+    return False
+
+
 def stage_6_battle_actions():
     logger.info("[Stage6] 执行固定攻击拖拽：1->1, 2->2, 3->3")
     for wait_seconds, (own_name, opponent_name) in zip(
@@ -1194,14 +1201,16 @@ def stage_6_battle_actions():
             wait_seconds=wait_seconds,
             distance_ratio=DRAG_DISTANCE_RATIO,
         )
-        if click_if_match("战斗进行中_发生倒退_确认"):
-            logger.info("[Stage6] 检测到发生倒退，已点击确认")
+        stage_6_confirm_battle_error()
 
     stage_6_end_turn()
 
 
 def play_stage_6_duel_until_victory():
     while True:
+        if stage_6_confirm_battle_error():
+            continue
+
         screen = capture_screen()
 
         if match_roi("决斗胜利_好", screen):
@@ -1238,6 +1247,9 @@ def play_stage_6_duel_until_victory():
             continue
         else:
             logger.info("[Stage6] 未检测到回合结束，尝试进入战斗阶段")
+
+        if stage_6_confirm_battle_error():
+            continue
 
         if click_if_match("决斗中_战斗"):
             stage_6_battle_actions()
