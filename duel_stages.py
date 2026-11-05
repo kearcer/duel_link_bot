@@ -467,15 +467,15 @@ def handle_main_page_pre_actions():
     handled = False
 
     screen = capture_screen()
-    if match_roi("战斗结束_好友列表", screen):
-        logger.info("[MainPage] 战斗结束_好友列表 -> 战斗结束_好友列表_取消")
+    if match_roi("战斗结束_好友列表_取消", screen):
+        logger.info("[MainPage] 战斗结束_好友列表_取消 -> 战斗结束_好友列表_取消")
         click_roi_center("战斗结束_好友列表_取消")
         wait_until_main_page(restart_on_activity=True)
         handled = True
 
     screen = capture_screen()
-    if match_roi("查看无名决斗者卡组_标识", screen):
-        logger.info("[MainPage] 查看无名决斗者卡组_标识 -> 查看无名决斗者卡组_取消")
+    if match_roi("查看无名决斗者卡组_取消", screen):
+        logger.info("[MainPage] 查看无名决斗者卡组_取消 -> 查看无名决斗者卡组_取消")
         click_roi_center("查看无名决斗者卡组_取消")
         wait_until_main_page(restart_on_activity=True)
         handled = True
@@ -641,8 +641,6 @@ POST_DUEL_ACTIONS = (
     ("决斗胜利_下一步", "决斗胜利_下一步"),
     ("决斗胜利_救援活动下一步", "决斗胜利_救援活动下一步"),
     ("决斗宝珠补充标识", "决斗宝珠补充页面关闭按钮"),
-    ("战斗结束_好友列表", "战斗结束_好友列表_取消"),
-    ("查看无名决斗者卡组_标识", "查看无名决斗者卡组_取消"),
     ("任务提示关闭", "任务提示关闭"),
     ("决斗结束下一步", "决斗结束下一步"),
     ("决斗胜利_活动好_3倍", "决斗胜利_活动好_3倍"),
@@ -835,6 +833,7 @@ def run_stage_1():
 
     while True:
         wait_until_main_page(restart_on_activity=True)
+        time.sleep(POLL_INTERVAL)
         if handle_main_page_pre_actions():
             continue
 
