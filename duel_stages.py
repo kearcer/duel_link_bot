@@ -1416,11 +1416,11 @@ def shutdown_windows():
 
 def run_stage_0():
     for round_number in range(1, 3):
-        logger.info("[Stage0] 开始第%s轮：阶段1 → 阶段2 → 阶段3", round_number)
+        logger.info("[Stage0] 开始第%s轮：阶段1 → 阶段2 → 阶段4", round_number)
 
         run_stage_until_no_restart(1, run_stage_1)
         run_stage_until_no_restart(2, run_stage_2)
-        run_stage_until_no_restart(3, run_stage_3)
+        run_stage_until_no_restart(4, run_stage_4)
 
         if round_number < 2:
             logger.info("[Stage0] 第1轮完成，等待5分钟后开始第2轮")
