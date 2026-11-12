@@ -443,7 +443,22 @@ def wait_until_match(name):
 
 
 def wait_until_main_page(restart_on_activity=False):
-    while not is_main_page(restart_on_activity=restart_on_activity):
+    while True:
+        screen = capture_screen()
+
+        if match_roi("战斗结束_好友列表_取消", screen):
+            logger.info("[MainPage] 战斗结束_好友列表_取消 -> 战斗结束_好友列表_取消")
+            click_roi_center("战斗结束_好友列表_取消")
+            continue
+
+        if match_roi("查看无名决斗者卡组_取消", screen):
+            logger.info("[MainPage] 查看无名决斗者卡组_取消 -> 查看无名决斗者卡组_取消")
+            click_roi_center("查看无名决斗者卡组_取消")
+            continue
+
+        if is_main_page(screen, restart_on_activity=restart_on_activity):
+            return
+
         check_and_recover_network()
         time.sleep(POLL_INTERVAL)
 
