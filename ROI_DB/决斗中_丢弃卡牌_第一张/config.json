@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_丢弃卡牌_第一张",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 85,
+    "y": 796,
+    "width": 86,
+    "height": 71
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 128,
+    "y": 831
+  },
+  "scene": "",
+  "tags": []
+}

@@ -1,0 +1,22 @@
+{
+  "name": "活动_决斗之路_决斗_困难",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 474,
+    "y": 597,
+    "width": 88,
+    "height": 34
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 518,
+    "y": 614
+  },
+  "scene": "",
+  "tags": []
+}

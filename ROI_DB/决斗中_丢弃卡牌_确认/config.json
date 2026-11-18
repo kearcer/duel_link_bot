@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_丢弃卡牌_确认",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 289,
+    "y": 1161,
+    "width": 146,
+    "height": 75
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 362,
+    "y": 1198
+  },
+  "scene": "",
+  "tags": []
+}

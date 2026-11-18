@@ -1,0 +1,22 @@
+{
+  "name": "活动_决斗之路",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 417,
+    "y": 850,
+    "width": 215,
+    "height": 85
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 524,
+    "y": 892
+  },
+  "scene": "",
+  "tags": []
+}

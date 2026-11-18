@@ -1,0 +1,22 @@
+{
+  "name": "活动_决斗之路_决斗结果_好",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 301,
+    "y": 873,
+    "width": 117,
+    "height": 44
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 359,
+    "y": 895
+  },
+  "scene": "",
+  "tags": []
+}

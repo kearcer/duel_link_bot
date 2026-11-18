@@ -1,0 +1,22 @@
+{
+  "name": "决斗中_继续行动阶段_确认",
+  "base_resolution": {
+    "width": 720,
+    "height": 1280
+  },
+  "roi": {
+    "x": 423,
+    "y": 666,
+    "width": 168,
+    "height": 67
+  },
+  "type": "template",
+  "threshold": 0.85,
+  "click": {
+    "mode": "center",
+    "x": 507,
+    "y": 699
+  },
+  "scene": "",
+  "tags": []
+}

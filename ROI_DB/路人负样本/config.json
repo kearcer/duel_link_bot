@@ -5,10 +5,10 @@
     "height": 1280
   },
   "roi": {
-    "x": 612,
-    "y": 503,
-    "width": 107,
-    "height": 114
+    "x": 636,
+    "y": 521,
+    "width": 59,
+    "height": 85
   },
   "type": "template",
   "threshold": 0.85,
